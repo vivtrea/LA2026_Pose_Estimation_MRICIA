@@ -1,0 +1,211 @@
+Loaded 200 frames from /Users/andriigovorov/Documents/LA/proj_pose_estimation_local/data/vpair_sample/queries
+Using estimated K from FoV=90.0°:
+[[400.   0. 400.]
+ [  0. 400. 300.]
+ [  0.   0.   1.]]
+Frame 0000 -> 0001 | roll= 12.565°  pitch= -3.845°  yaw= -1.639°
+Frame 0001 -> 0002 | roll=  0.684°  pitch= -1.959°  yaw=  1.037°
+Frame 0002 -> 0003 | roll= -1.531°  pitch= -0.854°  yaw= -3.432°
+Frame 0003 -> 0004 | roll= 15.824°  pitch=  1.825°  yaw= 16.007°
+Frame 0004 -> 0005 | roll=  3.906°  pitch= -4.048°  yaw=  9.474°
+Frame 0005 -> 0006 | roll= -0.934°  pitch=  1.632°  yaw=  0.218°
+Frame 0006 -> 0007 | roll=  0.313°  pitch=  0.636°  yaw=  1.263°
+Frame 0007 -> 0008 | roll= -1.304°  pitch=  1.702°  yaw= -2.011°
+Frame 0008 -> 0009 | roll= -0.028°  pitch=  0.689°  yaw= -0.971°
+Frame 0009 -> 0010 | roll=  0.628°  pitch=  1.230°  yaw= -1.707°
+Frame 0010 -> 0011 | roll=  0.589°  pitch= -0.723°  yaw=  0.983°
+Frame 0011 -> 0012 | roll=  1.478°  pitch=  2.393°  yaw=  0.680°
+Frame 0012 -> 0013 | roll=  2.900°  pitch=  2.036°  yaw=  0.703°
+Frame 0013 -> 0014 | roll=  2.212°  pitch= -2.573°  yaw=  3.681°
+Frame 0014 -> 0015 | roll=  1.196°  pitch= -0.413°  yaw= -0.913°
+Frame 0015 -> 0016 | roll= -0.018°  pitch=  0.416°  yaw= -0.328°
+Frame 0016 -> 0017 | roll= -1.458°  pitch= -0.738°  yaw=  1.643°
+Frame 0017 -> 0018 | roll=  0.037°  pitch= -0.416°  yaw=  0.125°
+Frame 0018 -> 0019 | roll= -1.191°  pitch=  0.631°  yaw= -1.989°
+Frame 0019 -> 0020 | roll=  0.253°  pitch=  1.559°  yaw=  1.682°
+Frame 0020 -> 0021 | roll= -0.261°  pitch= -0.412°  yaw=  0.104°
+Frame 0021 -> 0022 | roll= -0.292°  pitch= -0.204°  yaw= -0.597°
+Frame 0022 -> 0023 | roll= -4.704°  pitch=  6.594°  yaw=-11.476°
+Frame 0023 -> 0024 | roll=  0.657°  pitch= -0.124°  yaw=  0.635°
+Frame 0024 -> 0025 | roll= -1.477°  pitch= -0.642°  yaw=  1.383°
+Frame 0025 -> 0026 | roll= -2.270°  pitch= -0.275°  yaw=  1.238°
+Frame 0026 -> 0027 | roll=  1.982°  pitch=  0.028°  yaw= -1.181°
+Frame 0027 -> 0028 | roll= 10.553°  pitch= 12.948°  yaw=  4.650°
+Frame 0028 -> 0029 | roll= -1.315°  pitch= -1.166°  yaw=  1.509°
+Frame 0029 -> 0030 | roll=  1.637°  pitch=  0.750°  yaw=  2.907°
+Frame 0030 -> 0031 | roll=  5.908°  pitch=  5.287°  yaw=  0.155°
+Frame 0031 -> 0032 | roll= -1.208°  pitch= -1.370°  yaw=  0.954°
+Frame 0032 -> 0033 | roll=  7.423°  pitch= -2.950°  yaw= -1.385°
+Frame 0033 -> 0034 | roll=  4.268°  pitch= -3.790°  yaw=  1.190°
+Frame 0034 -> 0035 | roll=  0.205°  pitch= -7.602°  yaw=  1.195°
+Frame 0035 -> 0036 | roll= -9.692°  pitch=-13.041°  yaw=  6.855°
+Frame 0036 -> 0037 | roll=  7.829°  pitch= -2.778°  yaw= -1.760°
+Frame 0037 -> 0038 | roll= -2.476°  pitch=  1.412°  yaw=  1.869°
+Frame 0038 -> 0039 | roll=  1.386°  pitch= -3.630°  yaw=  4.551°
+Frame 0039 -> 0040 | roll= -2.888°  pitch= -0.942°  yaw= -1.290°
+Frame 0040 -> 0041 | roll= -2.171°  pitch=  2.570°  yaw= -4.972°
+Frame 0041 -> 0042 | roll= -0.119°  pitch=  0.456°  yaw=  0.139°
+Frame 0042 -> 0043 | roll= -2.800°  pitch= -2.276°  yaw=  1.789°
+Frame 0043 -> 0044 | roll=  4.852°  pitch= -2.260°  yaw=  5.050°
+Frame 0044 -> 0045 | roll= -1.549°  pitch=  0.444°  yaw=  0.282°
+Frame 0045 -> 0046 | roll=  1.321°  pitch= -0.136°  yaw=  2.148°
+Frame 0046 -> 0047 | roll= -1.824°  pitch=  0.785°  yaw=  1.489°
+Frame 0047 -> 0048 | roll= -0.139°  pitch= -0.044°  yaw=  0.744°
+Frame 0048 -> 0049 | roll= -0.808°  pitch=  2.447°  yaw=  1.115°
+Frame 0049 -> 0050 | roll=  2.616°  pitch=  3.883°  yaw=  0.562°
+Frame 0050 -> 0051 | roll=  0.178°  pitch=  0.071°  yaw= -0.927°
+Frame 0051 -> 0052 | roll= -1.578°  pitch=  2.320°  yaw= -1.769°
+Frame 0052 -> 0053 | roll= -0.508°  pitch=  1.784°  yaw= -1.911°
+Frame 0053 -> 0054 | roll=  1.922°  pitch= -0.060°  yaw= -2.116°
+Frame 0054 -> 0055 | roll= -4.828°  pitch= -3.011°  yaw= -1.697°
+Frame 0055 -> 0056 | roll= -0.475°  pitch= -1.223°  yaw=  0.984°
+Frame 0056 -> 0057 | roll=  0.861°  pitch=  1.344°  yaw=  0.835°
+Frame 0057 -> 0058 | roll= -1.516°  pitch= -1.219°  yaw=  1.317°
+Frame 0058 -> 0059 | roll= -2.059°  pitch= -0.562°  yaw= -1.668°
+Frame 0059 -> 0060 | roll=  0.527°  pitch= -4.958°  yaw= -0.500°
+Frame 0060 -> 0061 | roll= -1.756°  pitch= -0.628°  yaw=  0.516°
+Frame 0061 -> 0062 | roll=  0.379°  pitch=  0.473°  yaw=  0.741°
+Frame 0062 -> 0063 | roll= -1.916°  pitch= -0.027°  yaw= -0.657°
+Frame 0063 -> 0064 | roll=  4.304°  pitch= -0.745°  yaw=  2.171°
+Frame 0064 -> 0065 | roll=  1.691°  pitch= -0.638°  yaw=  3.993°
+Frame 0065 -> 0066 | roll=  0.429°  pitch=  0.412°  yaw=  1.470°
+Frame 0066 -> 0067 | roll= -4.531°  pitch= -4.780°  yaw= -3.268°
+Frame 0067 -> 0068 | roll=  7.431°  pitch= -0.458°  yaw=  5.777°
+Frame 0068 -> 0069 | roll=  2.849°  pitch= -1.317°  yaw=  2.731°
+Frame 0069 -> 0070 | roll= -1.479°  pitch=  1.606°  yaw= -3.848°
+Frame 0070 -> 0071 | roll=  0.448°  pitch=  0.011°  yaw= -0.119°
+Frame 0071 -> 0072 | roll=  1.221°  pitch= -2.579°  yaw=  0.243°
+Frame 0072 -> 0073 | roll=  0.332°  pitch= -0.701°  yaw=  0.217°
+Frame 0073 -> 0074 | roll= -0.158°  pitch=  0.547°  yaw= -0.377°
+Frame 0074 -> 0075 | roll= -0.523°  pitch= -0.627°  yaw=  1.036°
+Frame 0075 -> 0076 | roll= -3.984°  pitch= -1.170°  yaw=  1.195°
+Frame 0076 -> 0077 | roll= -3.808°  pitch= -0.319°  yaw= -0.071°
+Frame 0077 -> 0078 | roll=  1.054°  pitch=  0.256°  yaw=  1.548°
+Frame 0078 -> 0079 | roll=  6.279°  pitch= -4.874°  yaw=-12.218°
+Frame 0079 -> 0080 | roll= -2.568°  pitch= -0.892°  yaw=  0.416°
+Frame 0080 -> 0081 | roll= -1.471°  pitch=  1.575°  yaw= -1.195°
+Frame 0081 -> 0082 | roll= -1.137°  pitch= -0.148°  yaw= -1.496°
+Frame 0082 -> 0083 | roll= -8.090°  pitch=  1.559°  yaw= -6.472°
+Frame 0083 -> 0084 | roll= -8.786°  pitch=  4.733°  yaw= -6.941°
+Frame 0084 -> 0085 | roll=-11.949°  pitch=  0.680°  yaw=  5.060°
+Frame 0085 -> 0086 | roll= 17.540°  pitch= -6.658°  yaw=-10.784°
+Frame 0086 -> 0087 | roll=  2.739°  pitch= -3.451°  yaw=  0.776°
+Frame 0087 -> 0088 | roll=  6.151°  pitch= -5.603°  yaw=  1.794°
+Frame 0088 -> 0089 | roll= -0.494°  pitch=  1.373°  yaw= -0.040°
+Frame 0089 -> 0090 | roll=  4.735°  pitch= -0.795°  yaw=  1.982°
+Frame 0090 -> 0091 | roll= -0.259°  pitch= -1.020°  yaw= -1.214°
+Frame 0091 -> 0092 | roll= -1.754°  pitch= -0.422°  yaw= -3.375°
+Frame 0092 -> 0093 | roll= -1.531°  pitch=  0.071°  yaw= -1.217°
+Frame 0093 -> 0094 | roll= -1.633°  pitch=  3.382°  yaw= -1.297°
+Frame 0094 -> 0095 | roll=-74.617°  pitch=-74.468°  yaw= -0.686°
+Frame 0095 -> 0096 | roll=-76.257°  pitch=-52.796°  yaw= -6.472°
+Frame 0096 -> 0097 | roll=-22.852°  pitch=-22.508°  yaw=-19.793°
+Frame 0097 -> 0098 | roll=-63.749°  pitch= 27.739°  yaw= -8.298°
+Frame 0098 -> 0099 | roll= -0.920°  pitch=  0.497°  yaw= -4.902°
+Frame 0099 -> 0100 | roll= -6.546°  pitch=  4.006°  yaw=  1.928°
+Frame 0100 -> 0101 | roll= -0.215°  pitch= -0.410°  yaw= -2.310°
+Frame 0101 -> 0102 | roll=  0.739°  pitch= -0.449°  yaw= -0.518°
+Frame 0102 -> 0103 | roll= -0.074°  pitch= -0.897°  yaw=  1.527°
+Frame 0103 -> 0104 | roll= -1.525°  pitch=  2.174°  yaw= -0.679°
+Frame 0104 -> 0105 | roll= -1.046°  pitch= -0.556°  yaw=  0.779°
+Frame 0105 -> 0106 | roll=  0.206°  pitch= -0.417°  yaw= -0.453°
+Frame 0106 -> 0107 | roll=  0.098°  pitch= -0.485°  yaw= -0.822°
+Frame 0107 -> 0108 | roll=  1.029°  pitch= -3.554°  yaw=  0.250°
+Frame 0108 -> 0109 | roll= -5.619°  pitch= -4.762°  yaw=  0.699°
+Frame 0109 -> 0110 | roll= 17.348°  pitch=  1.828°  yaw= 10.701°
+Frame 0110 -> 0111 | roll=  2.220°  pitch=  4.600°  yaw=  0.494°
+Frame 0111 -> 0112 | roll=  9.232°  pitch=  4.437°  yaw=  3.705°
+Frame 0112 -> 0113 | roll= -1.931°  pitch=  0.439°  yaw= -3.249°
+Frame 0113 -> 0114 | roll= -2.515°  pitch=  0.503°  yaw= -0.983°
+Frame 0114 -> 0115 | roll=  2.430°  pitch= -5.358°  yaw=  3.169°
+Frame 0115 -> 0116 | roll= -1.933°  pitch= -5.699°  yaw=  0.242°
+Frame 0116 -> 0117 | roll= -2.744°  pitch=  0.254°  yaw=  2.282°
+Frame 0117 -> 0118 | roll= -1.395°  pitch=  1.699°  yaw= -1.311°
+Frame 0118 -> 0119 | roll= -0.544°  pitch=  3.677°  yaw=  0.694°
+Frame 0119 -> 0120 | roll= -1.713°  pitch=  2.131°  yaw=  0.014°
+Frame 0120 -> 0121 | roll=  0.334°  pitch=  0.911°  yaw= -1.409°
+Frame 0121 -> 0122 | roll=  2.116°  pitch= -3.025°  yaw= -0.061°
+Frame 0122 -> 0123 | roll= -0.699°  pitch=  0.680°  yaw= -0.558°
+Frame 0123 -> 0124 | roll=  0.372°  pitch= -1.852°  yaw=  0.608°
+Frame 0124 -> 0125 | roll=  0.549°  pitch= -0.252°  yaw= -0.443°
+Frame 0125 -> 0126 | roll=  0.398°  pitch= -0.649°  yaw= -0.234°
+Frame 0126 -> 0127 | roll= -2.087°  pitch=  0.623°  yaw= -0.124°
+Frame 0127 -> 0128 | roll=  0.868°  pitch= -4.902°  yaw= -3.098°
+Frame 0128 -> 0129 | roll= -0.131°  pitch=  3.805°  yaw= -0.944°
+Frame 0129 -> 0130 | roll= -0.636°  pitch= -0.561°  yaw=  1.700°
+Frame 0130 -> 0131 | roll= -0.123°  pitch=  0.170°  yaw=  0.364°
+Frame 0131 -> 0132 | roll= -0.010°  pitch=  0.619°  yaw=  0.063°
+Frame 0132 -> 0133 | roll= -0.483°  pitch= -0.316°  yaw=  0.890°
+Frame 0133 -> 0134 | roll= -0.067°  pitch= -0.549°  yaw= -0.109°
+Frame 0134 -> 0135 | roll= -0.290°  pitch= -0.040°  yaw= -0.222°
+Frame 0135 -> 0136 | roll= -6.718°  pitch= -5.126°  yaw=  1.292°
+Frame 0136 -> 0137 | roll= -6.661°  pitch= -5.257°  yaw=  2.168°
+Frame 0137 -> 0138 | roll= -0.084°  pitch= -0.198°  yaw=  0.693°
+Frame 0138 -> 0139 | roll=  2.848°  pitch= -0.745°  yaw=  1.861°
+Frame 0139 -> 0140 | roll=  0.350°  pitch=  0.349°  yaw= -0.285°
+Frame 0140 -> 0141 | roll=  3.904°  pitch=  2.160°  yaw= -0.594°
+Frame 0141 -> 0142 | roll= -3.330°  pitch=  0.126°  yaw= -2.071°
+Frame 0142 -> 0143 | roll= -2.468°  pitch= -4.600°  yaw= -1.234°
+Frame 0143 -> 0144 | roll= -1.170°  pitch= -0.720°  yaw=  0.936°
+Frame 0144 -> 0145 | roll=  4.476°  pitch= -3.980°  yaw= -5.235°
+Frame 0145 -> 0146 | roll= -4.942°  pitch=  0.236°  yaw=  2.382°
+Frame 0146 -> 0147 | roll=  4.868°  pitch= -4.881°  yaw=  1.831°
+Frame 0147 -> 0148 | roll=  1.124°  pitch= -6.038°  yaw=  3.680°
+Frame 0148 -> 0149 | roll= -0.331°  pitch=  0.118°  yaw= -1.301°
+Frame 0149 -> 0150 | roll= -3.618°  pitch= -2.707°  yaw= -2.442°
+Frame 0150 -> 0151 | roll=  4.616°  pitch=  0.929°  yaw= -1.169°
+Frame 0151 -> 0152 | roll=  0.719°  pitch=  0.378°  yaw= -0.051°
+Frame 0152 -> 0153 | roll=  1.271°  pitch= -0.847°  yaw=  0.142°
+Frame 0153 -> 0154 | roll= -4.665°  pitch= -2.948°  yaw=  0.608°
+Frame 0154 -> 0155 | roll= -2.463°  pitch= -0.130°  yaw= -3.762°
+Frame 0155 -> 0156 | roll=  4.448°  pitch= -5.556°  yaw=  2.019°
+Frame 0156 -> 0157 | roll= -2.299°  pitch=  2.248°  yaw=  0.821°
+Frame 0157 -> 0158 | roll=  0.182°  pitch=  0.134°  yaw=  0.250°
+Frame 0158 -> 0159 | roll= -0.963°  pitch=  1.228°  yaw= -1.507°
+Frame 0159 -> 0160 | roll= -0.092°  pitch=  0.151°  yaw= -1.389°
+Frame 0160 -> 0161 | roll= -0.770°  pitch=  2.046°  yaw= -2.542°
+Frame 0161 -> 0162 | roll= 14.471°  pitch= 11.922°  yaw=  7.186°
+Frame 0162 -> 0163 | roll= -1.333°  pitch=  1.921°  yaw=  0.624°
+Frame 0163 -> 0164 | roll= -0.758°  pitch= -0.528°  yaw=  0.956°
+Frame 0164 -> 0165 | roll=  1.618°  pitch= -1.912°  yaw= -1.000°
+Frame 0165 -> 0166 | roll=  0.664°  pitch=  0.432°  yaw=  0.950°
+Frame 0166 -> 0167 | roll= -0.325°  pitch= -1.313°  yaw= -0.478°
+Frame 0167 -> 0168 | roll= -3.190°  pitch=  0.236°  yaw=  0.905°
+Frame 0168 -> 0169 | roll= -0.237°  pitch= -0.119°  yaw=  0.238°
+Frame 0169 -> 0170 | roll=  4.165°  pitch= -2.100°  yaw=  1.593°
+Frame 0170 -> 0171 | roll=  0.155°  pitch= -0.618°  yaw=  1.386°
+Frame 0171 -> 0172 | roll=  0.644°  pitch=  0.886°  yaw= -1.961°
+Frame 0172 -> 0173 | roll= -6.777°  pitch= -6.648°  yaw= -0.289°
+Frame 0173 -> 0174 | roll= -2.080°  pitch= -2.694°  yaw=  1.656°
+Frame 0174 -> 0175 | roll= -1.013°  pitch= -0.960°  yaw=  2.387°
+Frame 0175 -> 0176 | roll= -2.009°  pitch= -0.956°  yaw=  2.553°
+Frame 0176 -> 0177 | roll=  3.005°  pitch=  1.150°  yaw= 10.798°
+Frame 0177 -> 0178 | roll= -1.244°  pitch= -0.170°  yaw=  0.728°
+Frame 0178 -> 0179 | roll=  3.652°  pitch=  1.043°  yaw=  0.843°
+Frame 0179 -> 0180 | roll=  1.032°  pitch=  1.378°  yaw=  2.764°
+Frame 0180 -> 0181 | roll=  0.996°  pitch=  2.647°  yaw= -0.945°
+Frame 0181 -> 0182 | roll=  2.065°  pitch=  5.699°  yaw=  3.987°
+Frame 0182 -> 0183 | roll= -0.683°  pitch= -2.165°  yaw=  2.086°
+Frame 0183 -> 0184 | roll= -8.929°  pitch= -0.425°  yaw= -8.742°
+Frame 0184 -> 0185 | roll= -0.341°  pitch= -0.939°  yaw=  1.192°
+Frame 0185 -> 0186 | roll= 24.750°  pitch= -4.746°  yaw=  0.341°
+Frame 0186 -> 0187 | roll=  0.356°  pitch= -0.301°  yaw=  0.478°
+Frame 0187 -> 0188 | roll=  0.787°  pitch= -0.710°  yaw=  0.769°
+Frame 0188 -> 0189 | roll= -1.540°  pitch= -0.481°  yaw= -2.681°
+Frame 0189 -> 0190 | roll= -0.775°  pitch= -0.649°  yaw= -0.561°
+Frame 0190 -> 0191 | roll=  8.159°  pitch=  1.154°  yaw= -1.017°
+Frame 0191 -> 0192 | roll= -1.440°  pitch=  0.040°  yaw= -2.860°
+Frame 0192 -> 0193 | roll=  3.993°  pitch=  1.301°  yaw=  0.923°
+Frame 0193 -> 0194 | roll= -0.409°  pitch=  0.340°  yaw= -1.341°
+Frame 0194 -> 0195 | roll=  0.003°  pitch= -0.323°  yaw=  0.517°
+Frame 0195 -> 0196 | roll=  0.016°  pitch= -0.048°  yaw=  0.812°
+Frame 0196 -> 0197 | roll= -1.253°  pitch= -1.683°  yaw=  0.828°
+Frame 0197 -> 0198 | roll=  1.636°  pitch=  1.430°  yaw=  2.183°
+Frame 0198 -> 0199 | roll=  0.395°  pitch= -0.150°  yaw=  0.299°
+
+--- RMSE vs ground truth ---
+  Roll:  9.9721°
+  Pitch: 7.5303°
+  Yaw:   3.4663°
+
+Results saved to results.csv

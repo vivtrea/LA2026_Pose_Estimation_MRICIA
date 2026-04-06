@@ -1,0 +1,5 @@
+LICENSE
+
+The dataset is for academic use only. Commercial use is prohibited. If you use this dataset in your research please cite it accordingly:
+
+M. Schleiss, F, Rouatbi, D. Cremers, VPAIR - Aerial Dataset for Visual Place Recognition and Localization, 2022. [Online]. Available: https://github.com/AerVisLoc/vpair
