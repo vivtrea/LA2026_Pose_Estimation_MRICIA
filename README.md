@@ -16,7 +16,7 @@ For evaluation, we use the publicly available VPAIR dataset provided by the AerV
 
 The core idea is based on linear algebra concepts:
 
-- **Homography**: A transformation that describes how points in one image relate to points in another image when viewed from different perspectives
+- **Homography**: A transformation that describes how points in one image relate to points in another image(when same object viewed from different perspectives)
 - **Image Alignment**: Finding the best transformation that aligns one image to another
 - **Pose Recovery**: Using the transformation to calculate the actual movement of the drone
 
@@ -128,7 +128,7 @@ python mr_icia/pipeline.py --data_dir ./data/sample_images --estimate_K --fov 90
 
 Install with:
 ```bash
-pip install opencv-python numpy matplotlib
+pip install -r requirements.txt
 ```
 
 ## Planned Work
