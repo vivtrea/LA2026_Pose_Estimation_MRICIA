@@ -98,14 +98,11 @@ This result confirms that the instability observed in the original pipeline is n
 ### Usage Example
 
 ```bash
-# Basic usage with known camera parameters
-python mr_icia/pipeline.py --data_dir ./data/sample_images --fx 868.99 --fy 868.99 --cx 525.0 --cy 399.0
-
 # With ground truth evaluation
-python mr_icia/pipeline.py --data_dir ./data/sample_images --pose_file ./data/poses.txt --fx 868.99 --fy 868.99 --cx 525.0 --cy 399.0
+python mr_icia/pipeline.py --data_dir ./data/vpair_sample/queries --fx 750.626 --fy 750.263 --cx 402.410 --cy 292.988 --output results --pose_file data/vpair_sample/poses_query.txt
 
-# Estimate camera parameters from field of view
-python mr_icia/pipeline.py --data_dir ./data/sample_images --estimate_K --fov 90.0
+# regarding low texture
+python mr_icia/pipeline_added_texture.py --data_dir ./data/vpair_sample/queries --fx 750.626 --fy 750.263 --cx 402.410 --cy 292.988 --output results --pose_file data/vpair_sample/poses_query.txt
 ```
 
 ## Technical Details
