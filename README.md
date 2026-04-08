@@ -2,6 +2,8 @@
 
 Linear Algebra 2026 course project on Pose Estimation of UAV using Image Alignment (MR-ICIA)
 
+[Video explanation by Andrii](https://youtu.be/YYFGFgKblvg?si=SOxoTiXM6sDxkr6T)
+
 ## Project Overview
 
 This project implements a technique called MR-ICIA (Multi-Resolution Inverse Compositional Image Alignment) to estimate the position and orientation (pose) of a drone (UAV) using only camera images. By analyzing how the scene changes between consecutive images, we can determine how the drone moved between those moments.
