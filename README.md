@@ -3,6 +3,8 @@
 Linear Algebra 2026 course project on Pose Estimation of UAV using Image Alignment (MR-ICIA)
 
 [Video explanation by Andrii](https://youtu.be/YYFGFgKblvg?si=SOxoTiXM6sDxkr6T)
+[Video explanation by Olena](https://youtu.be/S5_K-FD2lWw?si=SEZoXYkZmepxlrIP)
+[Video explanation by Mykyta part_1](https://youtu.be/I2tpMi9eH-o) + [Video explanation by Mykyta part_2](https://youtu.be/65daS32X2tk)
 
 ## Project Overview
 
