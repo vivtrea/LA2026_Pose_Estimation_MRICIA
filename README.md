@@ -150,4 +150,5 @@ Based on the method described in:
 [Martinez et al. (2011) - "Random Sample Matrix Factorization for Distributed Video Analysis"](https://oa.upm.es/13248/1/INVE_MEM_2011_111191.pdf)
 
 VPAIR dataset:
-Schleiss et al. (2022) - VPAIR dataset
+[Schleiss et al. (2022) - VPAIR dataset]
+(https://zenodo.org/records/6473989#.YmB_XC8esQw)
