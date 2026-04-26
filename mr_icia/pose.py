@@ -32,6 +32,7 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     # Step 2: Normalise by median singular value to remove scale (eq. 13)
     _, sv, _ = np.linalg.svd(HL)
     gamma = np.median(sv)
+    # TODO
     if abs(gamma) < 1e-8:
         gamma = 1.0  # guard against degenerate case
     He = HL / gamma
@@ -44,7 +45,7 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     R, t = _select_solution(Rs, Ts, Ns, num_solutions)
 
     # Step 5: Euler angles from R (eq. 15)
-    roll, pitch, yaw = _rotation_to_euler(R)
+    roll, pitch, yaw = rotation_to_euler(R)
 
     return R, t, (roll, pitch, yaw)
 
@@ -90,7 +91,7 @@ def _select_solution(
     return Rs[best_idx], np.array(Ts[best_idx]).ravel()
 
 
-def _rotation_to_euler(R: np.ndarray) -> tuple:
+def rotation_to_euler(R: np.ndarray) -> tuple:
     """
     Extract roll, pitch, yaw (in degrees) from a rotation matrix.
     Convention follows eq. (15) in Martinez et al. (2011).
@@ -106,3 +107,28 @@ def _rotation_to_euler(R: np.ndarray) -> tuple:
     roll  = np.degrees(np.arctan2(R[2, 1], R[2, 2]))
     yaw   = np.degrees(np.arctan2(R[1, 0], R[0, 0]))
     return roll, pitch, yaw
+
+def euler_to_rotation(roll: int, pitch: int, yaw: int) -> np.ndarray:
+    rx = np.radians(roll)
+    ry = np.radians(pitch)
+    rz = np.radians(yaw)
+
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(rx), -np.sin(rx)],
+        [0, np.sin(rx),  np.cos(rx)]
+    ])
+
+    Ry = np.array([
+        [ np.cos(ry), 0, np.sin(ry)],
+        [0,           1, 0],
+        [-np.sin(ry), 0, np.cos(ry)]
+    ])
+
+    Rz = np.array([
+        [np.cos(rz), -np.sin(rz), 0],
+        [np.sin(rz),  np.cos(rz), 0],
+        [0,           0,          1]
+    ])
+
+    return Rz @ Ry @ Rx  # ZYX convention

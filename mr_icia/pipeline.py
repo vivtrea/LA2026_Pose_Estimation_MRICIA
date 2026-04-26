@@ -15,7 +15,6 @@ If you don't have intrinsics yet, use --estimate_K to approximate from FoV.
 
 import argparse
 import csv
-import os
 from pathlib import Path
 
 import cv2
@@ -24,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from homography import build_homography, compose_warp, propagate_params
 from icia import compute_jacobian_and_hessian, icia_step
-from pose import recover_pose
+from pose import recover_pose, rotation_to_euler, euler_to_rotation
 from pyramid import build_pyramid
 
 
@@ -60,32 +59,6 @@ def load_frames(data_dir: str) -> list:
 
     print(f"Loaded {len(frames)} frames from {data_dir}")
     return frames
-
-
-def load_ground_truth(pose_file: str) -> list:
-    """
-    Load VPAIR ground-truth 6-DoF poses from a CSV file.
-    Expected columns: frame_id, tx, ty, tz, roll, pitch, yaw
-
-    Args:
-        pose_file: Path to CSV file with ground-truth poses.
-
-    Returns:
-        List of dicts with keys: tx, ty, tz, roll, pitch, yaw.
-        Returns empty list if file does not exist.
-    """
-    if not os.path.exists(pose_file):
-        print(f"Warning: pose file not found at {pose_file}. "
-              "RMSE evaluation will be skipped.")
-        return []
-
-    poses = []
-    with open(pose_file, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            poses.append({k: float(v) for k, v in row.items()
-                          if k != "frame_id"})
-    return poses
 
 
 # ---------------------------------------------------------------------------
@@ -228,36 +201,21 @@ def mr_icia(
 # RMSE evaluation
 # ---------------------------------------------------------------------------
 
-def compute_rmse(estimated: list, ground_truth: list) -> dict:
-    """
-    Compute RMSE between estimated and ground-truth Euler angles.
-
-    Args:
-        estimated:    List of (roll, pitch, yaw) tuples in degrees.
-        ground_truth: List of dicts with keys roll, pitch, yaw.
-
-    Returns:
-        Dict with RMSE values for roll, pitch, yaw.
-    """
-    n = min(len(estimated), len(ground_truth))
-    if n == 0:
-        return {}
-
-    est = np.array(estimated[:n])
-    gt  = np.array([[g["roll"], g["pitch"], g["yaw"]]
-                    for g in ground_truth[:n]])
-
-    rmse = np.sqrt(np.mean((est - gt) ** 2, axis=0))
-    return {"roll": rmse[0], "pitch": rmse[1], "yaw": rmse[2]}
-
-# In pipeline.py — replace load_ground_truth() with this:
-
 def load_vpair_poses(pose_file: str) -> list:
     """
-    Load VPAIR poses from poses_query.txt.
-    Columns: filepath, x, y, z, undulation, roll, pitch, yaw
-    x, y, z are ECEF coordinates in metres.
-    roll, pitch, yaw are in degrees.
+    Load absolute VPAIR poses from `poses_query.txt`.
+
+    Expected columns:
+        filepath, x, y, z, undulation, roll, pitch, yaw
+
+    Positions are stored in ECEF metres. Angles are stored in radians in the
+    dataset and converted to degrees here.
+
+    Args:
+        pose_file: Path to the VPAIR pose file.
+
+    Returns:
+        List of pose dictionaries with absolute position and Euler angles.
     """
     poses = []
     with open(pose_file, newline="") as f:
@@ -275,18 +233,23 @@ def load_vpair_poses(pose_file: str) -> list:
     return poses
 
 
-def compute_rmse_vpair(estimated_angles: list, gt_relative: list) -> dict:
+def compute_rmse_vpair(
+    estimated_step_angles: list,
+    ground_truth_angles: list,
+) -> dict:
     """
-    Compare estimated Euler angles from MR-ICIA against relative
-    ground truth rotations computed by compute_relative_angles().
+    Compute Euler-angle RMSE against aligned absolute ground truth.
+
+    The first estimate in the current pipeline corresponds to frame 1 because
+    it is recovered from motion between frames 0 and 1.
     """
-    n = min(len(estimated_angles), len(gt_relative))
+    n = min(len(estimated_step_angles), len(ground_truth_angles))
 
     angle_errors = []
 
     for i in range(n):
-        est_roll,  est_pitch,  est_yaw  = estimated_angles[i]
-        gt_roll,   gt_pitch,   gt_yaw   = gt_relative[i]  # unpack tuple
+        est_roll,  est_pitch,  est_yaw  = estimated_step_angles[i]
+        gt_roll,   gt_pitch,   gt_yaw   = ground_truth_angles[i]
 
         angle_errors.append([
             est_roll  - gt_roll,
@@ -303,30 +266,27 @@ def compute_rmse_vpair(estimated_angles: list, gt_relative: list) -> dict:
         "yaw_rmse":   rmse[2],
     }
 
-def compute_relative_angles(gt_poses: list) -> list:
+def plot_errors_over_time(
+    estimated_step_angles: list,
+    ground_truth_angles: list,
+    output_path: str = "errors.png",
+):
     """
-    Convert absolute GT poses into relative frame-to-frame rotations.
-    Assumes angles are already in degrees (converted in load_vpair_poses).
-    """
-    relative = []
-    for i in range(len(gt_poses) - 1):
-        d_roll  = gt_poses[i+1]["roll"]  - gt_poses[i]["roll"]
-        d_pitch = gt_poses[i+1]["pitch"] - gt_poses[i]["pitch"]
-        d_yaw   = gt_poses[i+1]["yaw"]   - gt_poses[i]["yaw"]
-        relative.append((d_roll, d_pitch, d_yaw))
-    return relative
+    Plot per-frame absolute angular error for roll, pitch, and yaw.
 
-
-def plot_errors_over_time(estimated_angles: list, gt_relative: list, output_path: str = "errors.png"):
+    Args:
+        estimated_step_angles: Sequence of estimated Euler-angle tuples in
+            degrees.
+        ground_truth_angles: Sequence of GT Euler-angle tuples in degrees,
+            aligned to the same frame indices as `estimated_step_angles`.
+        output_path: Destination path for the PNG figure.
     """
-    Plot per-frame angular error for roll, pitch, yaw over time.
-    """
-    n = min(len(estimated_angles), len(gt_relative))
+    n = min(len(estimated_step_angles), len(ground_truth_angles))
 
     frames  = list(range(n))
-    e_roll  = [abs(estimated_angles[i][0] - gt_relative[i][0]) for i in range(n)]
-    e_pitch = [abs(estimated_angles[i][1] - gt_relative[i][1]) for i in range(n)]
-    e_yaw   = [abs(estimated_angles[i][2] - gt_relative[i][2]) for i in range(n)]
+    e_roll  = [abs(estimated_step_angles[i][0] - ground_truth_angles[i][0]) for i in range(n)]
+    e_pitch = [abs(estimated_step_angles[i][1] - ground_truth_angles[i][1]) for i in range(n)]
+    e_yaw   = [abs(estimated_step_angles[i][2] - ground_truth_angles[i][2]) for i in range(n)]
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
     fig.suptitle("Per-frame angular error vs ground truth", fontsize=13)
@@ -419,11 +379,31 @@ def main():
         print(f"Using VPAIR default K:\n{K}")
 
     # --- Load ground-truth poses (optional) ---
-    gt_poses = load_vpair_poses(args.pose_file) if args.pose_file else []
+    if args.pose_file:
+        gt_poses = load_vpair_poses(args.pose_file)
+        gt_rotations = []
+        gt_positions = []
+        gt_absolute_angles = []
 
+        for p in gt_poses:
+            R = euler_to_rotation(p["roll"], p["pitch"], p["yaw"])
+            t = np.array([p["x"], p["y"], p["z"]])
+
+            gt_rotations.append(R)
+            gt_positions.append(t)
+            gt_absolute_angles.append((p["roll"], p["pitch"], p["yaw"]))
+
+        R_global = gt_rotations[0]
+        t_global = gt_positions[0]
+
+    else:
+        gt_poses = []
+        R_global = np.eye(3)
+        t_global = np.zeros(3)
     # --- Run MR-ICIA on consecutive frame pairs ---
-    estimated_angles = []
-    results = []
+    estimated_step_angles = []
+    step_pose_results = []
+    absolute_pose_results = []
 
     for i in range(len(frames) - 1):
         T_full = frames[i]
@@ -439,8 +419,8 @@ def main():
         # Recover pose from homography
         R, t, (roll, pitch, yaw) = recover_pose(Hp, K)
 
-        estimated_angles.append((roll, pitch, yaw))
-        results.append({
+        estimated_step_angles.append((roll, pitch, yaw))
+        step_pose_results.append({
             "frame":  i,
             "roll":   roll,
             "pitch":  pitch,
@@ -450,25 +430,44 @@ def main():
             "tz":     float(t[2]),
         })
 
+        t_global += R_global.T @ t
+        R_global = R_global @ R
+        roll_global, pitch_global, yaw_global = rotation_to_euler(R_global)
+        absolute_pose_results.append({
+            "frame":  i,
+            "roll":   roll_global,
+            "pitch":  pitch_global,
+            "yaw":    yaw_global,
+            "tx":     float(t_global[0]),
+            "ty":     float(t_global[1]),
+            "tz":     float(t_global[2]),
+        })
+
+        # print(f"Frame {i:04d} -> {i+1:04d} | "
+        #       f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}°")
+
         print(f"Frame {i:04d} -> {i+1:04d} | "
-              f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}°")
+              f"roll={roll_global:7.3f}°  pitch={pitch_global:7.3f}°  yaw={yaw_global:7.3f}°")
 
     # --- RMSE evaluation ---
     if gt_poses:
-        gt_relative = compute_relative_angles(gt_poses)
-        rmse = compute_rmse_vpair(estimated_angles, gt_relative)
+        rmse = compute_rmse_vpair(estimated_step_angles, gt_absolute_angles[1:])
         print("\n--- RMSE vs ground truth ---")
         print(f"  Roll:  {rmse['roll_rmse']:.4f}°")
         print(f"  Pitch: {rmse['pitch_rmse']:.4f}°")
         print(f"  Yaw:   {rmse['yaw_rmse']:.4f}°")
-        plot_errors_over_time(estimated_angles, gt_relative, output_path="moving_rmse.png")
+        plot_errors_over_time(
+            estimated_step_angles,
+            gt_absolute_angles[1:],
+            output_path="moving_rmse2.png",
+        )
 
     # --- Save results to CSV ---
     out_path = Path(args.output)
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer = csv.DictWriter(f, fieldnames=absolute_pose_results[0].keys())
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(absolute_pose_results)
     print(f"\nResults saved to {out_path}")
 
 
