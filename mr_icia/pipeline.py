@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from homography import build_homography, compose_warp, propagate_params
 from icia import compute_jacobian_and_hessian, icia_step
-from pose import recover_pose, rotation_to_euler, euler_to_rotation
+from pose import recover_pose, rotation_to_euler, euler_to_rotation, ecef_to_altitude, fixed_camera_to_vehicle_rotation
 from pyramid import build_pyramid
 
 
@@ -106,7 +106,7 @@ def estimate_K_from_fov(image_w: int, image_h: int,
 # Template cropping
 # ---------------------------------------------------------------------------
 
-def crop_template(img: np.ndarray, ratio: float = 0.8) -> np.ndarray:
+def crop_template(img: np.ndarray, ratio: float = 0.8, K: np.ndarray = None) -> tuple[np.ndarray, np.ndarray]:
     """
     Crop the central region of an image for use as the ICIA template.
     The paper uses ~80% of the image (Section II-B).
@@ -114,14 +114,20 @@ def crop_template(img: np.ndarray, ratio: float = 0.8) -> np.ndarray:
     Args:
         img:   Full grayscale image.
         ratio: Fraction of image to keep (0.8 = 80%).
+        K:     Camera intrinsic matrix (optional).
 
     Returns:
         Cropped central region.
+        If K is provided, also returns the adjusted K_crop for the cropped template.
     """
     h, w = img.shape
     dh = int(h * (1 - ratio) / 2)
     dw = int(w * (1 - ratio) / 2)
-    return img[dh:h - dh, dw:w - dw]
+
+    K_crop = K.copy()
+    K_crop[0, 2] -= dw
+    K_crop[1, 2] -= dh
+    return img[dh:h - dh, dw:w - dw], K_crop
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +314,62 @@ def plot_errors_over_time(
     plt.savefig(output_path, dpi=150)
     print(f"Error plot saved to {output_path}")
     plt.show()
+
+
+def plot_absolute_positions(
+    estimated_positions: list,
+    ground_truth_positions: list,
+    output_path: str = "absolute_positions.png",
+):
+    """
+    Plot estimated and ground-truth absolute UAV positions over time.
+
+    Args:
+        estimated_positions: Sequence of `(x, y, z)` tuples in metres.
+        ground_truth_positions: Sequence of GT `(x, y, z)` tuples in metres,
+            aligned to the same frame indices as `estimated_positions`.
+        output_path: Destination path for the PNG figure.
+    """
+    n = min(len(estimated_positions), len(ground_truth_positions))
+    if n == 0:
+        return
+
+    frames = list(range(n))
+    est = np.array(estimated_positions[:n], dtype=np.float64)
+    gt = np.array(ground_truth_positions[:n], dtype=np.float64)
+
+    fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=False)
+    fig.suptitle("Absolute UAV position: estimated vs ground truth", fontsize=13)
+
+    components = [
+        (0, "X position (m)", "steelblue"),
+        (1, "Y position (m)", "darkorange"),
+        (2, "Z position (m)", "seagreen"),
+    ]
+
+    for ax, (idx, label, color) in zip(axes[:3], components):
+        ax.plot(frames, gt[:, idx], color="black", linewidth=1.0, label="Ground truth")
+        ax.plot(frames, est[:, idx], color=color, linewidth=0.9, label="Estimated")
+        ax.set_ylabel(label)
+        ax.legend(loc="upper right", fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    axes[2].set_xlabel("Frame index")
+
+    axes[3].plot(gt[:, 0], gt[:, 1], color="black", linewidth=1.0, label="Ground truth XY")
+    axes[3].plot(est[:, 0], est[:, 1], color="purple", linewidth=0.9, label="Estimated XY")
+    axes[3].set_xlabel("X position (m)")
+    axes[3].set_ylabel("Y position (m)")
+    axes[3].legend(loc="upper right", fontsize=8)
+    axes[3].grid(True, alpha=0.3)
+    axes[3].set_title("Top-down XY trajectory", fontsize=11)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    print(f"Absolute position plot saved to {output_path}")
+    plt.show()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -384,7 +446,7 @@ def main():
         gt_rotations = []
         gt_positions = []
         gt_absolute_angles = []
-
+        altitudes = []
         for p in gt_poses:
             R = euler_to_rotation(p["roll"], p["pitch"], p["yaw"])
             t = np.array([p["x"], p["y"], p["z"]])
@@ -392,6 +454,7 @@ def main():
             gt_rotations.append(R)
             gt_positions.append(t)
             gt_absolute_angles.append((p["roll"], p["pitch"], p["yaw"]))
+            altitudes.append(ecef_to_altitude(p["x"], p["y"], p["z"]))
 
         R_global = gt_rotations[0]
         t_global = gt_positions[0]
@@ -400,24 +463,29 @@ def main():
         gt_poses = []
         R_global = np.eye(3)
         t_global = np.zeros(3)
+        altitudes = [100.0] * len(frames)  # default altitude in metres if GT not available
     # --- Run MR-ICIA on consecutive frame pairs ---
     estimated_step_angles = []
     step_pose_results = []
     absolute_pose_results = []
 
-    for i in range(len(frames) - 1):
+    R_vc = fixed_camera_to_vehicle_rotation()
+    R_cv = R_vc.T
+
+
+    for i in range(91):
         T_full = frames[i]
         I_full = frames[i + 1]
 
         # Crop central 80% of template (as in paper)
-        T = crop_template(T_full, ratio=0.8)
-        I = crop_template(I_full, ratio=0.8)
+        T, _ = crop_template(T_full, ratio=0.8, K=K)
+        I, K_crop = crop_template(I_full, ratio=0.8, K=K)
 
         # Run MR-ICIA to get projective homography
         Hp = mr_icia(T, I, levels=args.levels, max_iters=args.max_iters)
 
         # Recover pose from homography
-        R, t, (roll, pitch, yaw) = recover_pose(Hp, K)
+        R, t, (roll, pitch, yaw) = recover_pose(Hp, K_crop, altitudes[i+1])
 
         estimated_step_angles.append((roll, pitch, yaw))
         step_pose_results.append({
@@ -430,8 +498,13 @@ def main():
             "tz":     float(t[2]),
         })
 
-        t_global += R_global.T @ t
-        R_global = R_global @ R
+        R_prev = R_global.copy()
+        R_wc0 = R_prev @ R_vc
+        t_global = t_global + R_wc0 @ t
+
+        # R_global = R_prev @ R
+        R_global = R_global @ R_vc @ R @ R_cv
+
         roll_global, pitch_global, yaw_global = rotation_to_euler(R_global)
         absolute_pose_results.append({
             "frame":  i,
@@ -448,6 +521,10 @@ def main():
 
         print(f"Frame {i:04d} -> {i+1:04d} | "
               f"roll={roll_global:7.3f}°  pitch={pitch_global:7.3f}°  yaw={yaw_global:7.3f}°")
+        # print(f"normal vector: {n} | altitude: {float(altitude):.2f} m")
+        print(f"translation (t): {t} | global position: {t_global} | altitude: {float(altitudes[i+1]):.2f} m\n")
+        print(f"ground tranlation: {gt_positions[i+1] - gt_positions[i]} | ground altitude: {float(altitudes[i+1]):.2f} m\n")
+        print(f"t.norm")
 
     # --- RMSE evaluation ---
     if gt_poses:
@@ -460,6 +537,17 @@ def main():
             estimated_step_angles,
             gt_absolute_angles[1:],
             output_path="moving_rmse2.png",
+        )
+        plot_absolute_positions(
+            estimated_positions=[
+                (row["tx"], row["ty"], row["tz"])
+                for row in absolute_pose_results
+            ],
+            ground_truth_positions=[
+                (p[0], p[1], p[2])
+                for p in gt_positions[1:]
+            ],
+            output_path="absolute_position_comparison.png",
         )
 
     # --- Save results to CSV ---
