@@ -1,23 +1,7 @@
 import cv2
 import numpy as np
-from pyproj import Transformer
-import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
-
-ecef_to_lla = Transformer.from_crs(
-    "EPSG:4978",  # ECEF
-    "EPSG:4979",  # lat, lon, ellipsoidal height
-    always_xy=True
-)
-
-def ecef_to_altitude(x, y, z):
-    lon, lat, h = ecef_to_lla.transform(x, y, z)
-    return h  # ellipsoidal height in meters
-
-def fixed_camera_to_vehicle_rotation():
-    angle = np.radians(-90.0)
-    return Rot.from_euler("Z", angle, degrees=True).as_matrix()
 
 def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     """

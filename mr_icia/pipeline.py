@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from homography import build_homography, compose_warp, propagate_params
 from icia import compute_jacobian_and_hessian, icia_step
-from pose import recover_pose, fixed_camera_to_vehicle_rotation, euler_to_rotation, rotation_to_euler
+from pose import recover_pose, euler_to_rotation, rotation_to_euler
 from pyramid import build_pyramid
 
 
@@ -105,6 +105,7 @@ def load_frames(
     if undistort_maps is not None:
         print("  Undistortion applied to all frames.")
     return frames
+
 
 def load_ground_truth(pose_file: str) -> list:
     """
@@ -480,9 +481,6 @@ def main():
 
     # --- Build camera matrix K ---
     if args.estimate_K:
-        # h, w = frames[0].shape
-        # K = estimate_K_from_fov(w, h, args.fov)
-        # print(f"Using estimated K from FoV={args.fov}°:\n{K}")
         print("Error: --estimate_K option is not implemented yet. Please provide --fx, --fy, --cx, --cy.")
         return
     elif args.fx > 0:
@@ -529,21 +527,22 @@ def main():
     results = []
     results_world = []
 
-    R_vc = fixed_camera_to_vehicle_rotation()  # 3x3 rotation from camera to vehicle frame
-    R_cv = R_vc.T  # inverse rotation from vehicle to camera frame
     R_wv = euler_to_rotation(gt_poses[0]["roll"], gt_poses[0]["pitch"], gt_poses[0]["yaw"], degrees=True)  # world to vehicle rotation from first GT pose
+    yaw, pitch, roll = rotation_to_euler(R_wv)
+    results_world.append({
+        "frame":  0,
+        "roll":   roll,
+        "pitch":  pitch,
+        "yaw":    yaw,
+    })
+    print(f"Initial world pose from GT: roll={roll:.3f}°, pitch={pitch:.3f}°, yaw={yaw:.3f}°")
 
 
-    # for i in range(len(frames) - 1):
-    for i in range(91):
-        T_full = frames[i]
-        I_full = frames[i + 1]
+    for i in range(len(frames) - 1):
+    # for i in range(91):
+        T = frames[i]
+        I = frames[i + 1]
 
-        # Crop central 80% of template (as in paper)
-        # T = crop_template(T_full, ratio=0.8)
-        # I = crop_template(I_full, ratio=0.8)
-        T = T_full
-        I = I_full
 
         # Run MR-ICIA to get projective homography
         Hp = mr_icia(T, I, levels=args.levels, max_iters=args.max_iters)
@@ -561,8 +560,7 @@ def main():
             "tz":     float(t[2]),
         })
 
-        R_c0c1 = R_c1c0.T  # inverse rotation from current to template frame
-        R_wv = R_wv @ R_vc @ R_c0c1 @ R_cv
+        R_wv = R_wv @ R_c1c0
 
         roll_world, pitch_world, yaw_world = rotation_to_euler(R_wv)
         results_world.append({
