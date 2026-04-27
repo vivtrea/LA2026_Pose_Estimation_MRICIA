@@ -26,15 +26,20 @@ from icia import compute_jacobian_and_hessian, icia_step
 from pose import recover_pose, rotation_to_euler, euler_to_rotation, ecef_to_altitude, fixed_camera_to_vehicle_rotation
 from pyramid import build_pyramid
 
+
+
 D = np.array([
     -0.11592226392258145,
      0.1332261251415265,
     -0.00043977637330175616,
      0.0002380609784102606,
 ], dtype=np.float64)
+
+
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
+
 def build_undistort_maps(
     K: np.ndarray,
     D: np.ndarray,
@@ -101,34 +106,30 @@ def load_frames(
         print("  Undistortion applied to all frames.")
     return frames
 
-# def load_frames(data_dir: str) -> list:
-#     """
-#     Load all grayscale frames from a directory, sorted by filename.
-#     Supports .png, .jpg, .jpeg.
+def load_ground_truth(pose_file: str) -> list:
+    """
+    Load VPAIR ground-truth 6-DoF poses from a CSV file.
+    Expected columns: frame_id, tx, ty, tz, roll, pitch, yaw
 
-#     Args:
-#         data_dir: Path to directory containing aerial image frames.
+    Args:
+        pose_file: Path to CSV file with ground-truth poses.
 
-#     Returns:
-#         List of grayscale float32 numpy arrays, one per frame.
-#     """
-#     data_dir = Path(data_dir)
-#     extensions = {".png", ".jpg", ".jpeg"}
-#     paths = sorted([p for p in data_dir.iterdir()
-#                     if p.suffix.lower() in extensions])
+    Returns:
+        List of dicts with keys: tx, ty, tz, roll, pitch, yaw.
+        Returns empty list if file does not exist.
+    """
+    if not os.path.exists(pose_file):
+        print(f"Warning: pose file not found at {pose_file}. "
+              "RMSE evaluation will be skipped.")
+        return []
 
-#     if not paths:
-#         raise FileNotFoundError(f"No images found in {data_dir}")
-
-#     frames = []
-#     for p in paths:
-#         img = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
-#         if img is None:
-#             raise IOError(f"Could not read image: {p}")
-#         frames.append(img.astype(np.float32))
-
-#     print(f"Loaded {len(frames)} frames from {data_dir}")
-#     return frames
+    poses = []
+    with open(pose_file, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            poses.append({k: float(v) for k, v in row.items()
+                          if k != "frame_id"})
+    return poses
 
 
 # ---------------------------------------------------------------------------
@@ -494,19 +495,14 @@ def main():
     )
     args = parser.parse_args()
 
-    # --- Load frames ---
-    tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-                     cv2.IMREAD_GRAYSCALE)
-    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-    #                  cv2.IMREAD_GRAYSCALE)
-    # undistort_maps = build_undistort_maps(K, D, tmp.shape)
-    # frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
 
     # --- Build camera matrix K ---
     if args.estimate_K:
-        h, w = frames[0].shape
-        K = estimate_K_from_fov(w, h, args.fov)
-        print(f"Using estimated K from FoV={args.fov}°:\n{K}")
+        # h, w = frames[0].shape
+        # K = estimate_K_from_fov(w, h, args.fov)
+        # print(f"Using estimated K from FoV={args.fov}°:\n{K}")
+        print("Error: --estimate_K option is not implemented yet. Please provide --fx, --fy, --cx, --cy.")
+        return
     elif args.fx > 0:
         K = build_K(args.fx, args.fy, args.cx, args.cy)
         print(f"Using provided K:\n{K}")
@@ -514,10 +510,14 @@ def main():
         # VPAIR default intrinsics
         K = build_K(750.626, 750.263, 402.410, 292.988)
         print(f"Using VPAIR default K:\n{K}")
-    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-    #                  cv2.IMREAD_GRAYSCALE)
+
+
+    # --- Load frames ---
+    tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
+                    cv2.IMREAD_GRAYSCALE)
     undistort_maps = build_undistort_maps(K, D, tmp.shape)
     frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
+
     # --- Load ground-truth poses (optional) ---
     if args.pose_file:
         gt_poses = load_vpair_poses(args.pose_file)
@@ -543,21 +543,19 @@ def main():
         t_global = np.zeros(3)
         altitudes = [100.0] * len(frames)  # default altitude in metres if GT not available
     # --- Run MR-ICIA on consecutive frame pairs ---
-    estimated_step_angles = []
-    step_pose_results = []
-    absolute_pose_results = []
+    estimated_angles = []
+    results = []
 
-    R_vc = fixed_camera_to_vehicle_rotation()
-    R_cv = R_vc.T
-
-
+    # for i in range(len(frames) - 1):
     for i in range(91):
         T_full = frames[i]
         I_full = frames[i + 1]
 
         # Crop central 80% of template (as in paper)
-        T, _ = crop_template(T_full, ratio=0.8, K=K)
-        I, K_crop = crop_template(I_full, ratio=0.8, K=K)
+        # T = crop_template(T_full, ratio=0.8)
+        # I = crop_template(I_full, ratio=0.8)
+        T = T_full
+        I = I_full
 
         # Run MR-ICIA to get projective homography
         Hp = mr_icia(T, I, levels=args.levels, max_iters=args.max_iters)
@@ -611,22 +609,7 @@ def main():
         print(f"  Roll:  {rmse['roll_rmse']:.4f}°")
         print(f"  Pitch: {rmse['pitch_rmse']:.4f}°")
         print(f"  Yaw:   {rmse['yaw_rmse']:.4f}°")
-        plot_errors_over_time(
-            estimated_step_angles,
-            gt_absolute_angles[1:],
-            output_path="moving_rmse2.png",
-        )
-        plot_absolute_positions(
-            estimated_positions=[
-                (row["tx"], row["ty"], row["tz"])
-                for row in absolute_pose_results
-            ],
-            ground_truth_positions=[
-                (p[0], p[1], p[2])
-                for p in gt_positions[1:]
-            ],
-            output_path="absolute_position_comparison.png",
-        )
+        plot_errors_over_time(estimated_angles, gt_relative, output_path="moving_rmse2.png")
 
     # --- Save results to CSV ---
     out_path = Path(args.output)
