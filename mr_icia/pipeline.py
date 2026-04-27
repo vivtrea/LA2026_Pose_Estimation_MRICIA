@@ -26,18 +26,51 @@ from icia import compute_jacobian_and_hessian, icia_step
 from pose import recover_pose, rotation_to_euler, euler_to_rotation, ecef_to_altitude, fixed_camera_to_vehicle_rotation
 from pyramid import build_pyramid
 
-
+D = np.array([
+    -0.11592226392258145,
+     0.1332261251415265,
+    -0.00043977637330175616,
+     0.0002380609784102606,
+], dtype=np.float64)
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
-
-def load_frames(data_dir: str) -> list:
+def build_undistort_maps(
+    K: np.ndarray,
+    D: np.ndarray,
+    image_shape: tuple,
+) -> tuple:
     """
-    Load all grayscale frames from a directory, sorted by filename.
-    Supports .png, .jpg, .jpeg.
+    Precompute undistortion remap tables once for efficiency.
+    Using remap is faster than calling undistort() per frame.
 
     Args:
-        data_dir: Path to directory containing aerial image frames.
+        K:            3x3 camera intrinsic matrix.
+        D:            Distortion coefficients [k1, k2, p1, p2].
+        image_shape:  (height, width) of the images.
+
+    Returns:
+        map1, map2: Precomputed remap tables to pass to cv2.remap().
+    """
+    h, w = image_shape
+    map1, map2 = cv2.initUndistortRectifyMap(
+        K, D, None, K,
+        (w, h),
+        cv2.CV_32FC1
+    )
+    return map1, map2
+def load_frames(
+    data_dir: str,
+    undistort_maps: tuple = None,
+) -> list:
+    """
+    Load all grayscale frames from a directory, sorted by filename.
+    Optionally applies precomputed undistortion maps to every frame.
+
+    Args:
+        data_dir:         Path to directory containing aerial image frames.
+        undistort_maps:   Optional (map1, map2) from build_undistort_maps().
+                          If provided, every frame is undistorted on load.
 
     Returns:
         List of grayscale float32 numpy arrays, one per frame.
@@ -55,10 +88,47 @@ def load_frames(data_dir: str) -> list:
         img = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
         if img is None:
             raise IOError(f"Could not read image: {p}")
+
+        # Apply undistortion if maps are provided
+        if undistort_maps is not None:
+            map1, map2 = undistort_maps
+            img = cv2.remap(img, map1, map2, cv2.INTER_LINEAR)
+
         frames.append(img.astype(np.float32))
 
     print(f"Loaded {len(frames)} frames from {data_dir}")
+    if undistort_maps is not None:
+        print("  Undistortion applied to all frames.")
     return frames
+
+# def load_frames(data_dir: str) -> list:
+#     """
+#     Load all grayscale frames from a directory, sorted by filename.
+#     Supports .png, .jpg, .jpeg.
+
+#     Args:
+#         data_dir: Path to directory containing aerial image frames.
+
+#     Returns:
+#         List of grayscale float32 numpy arrays, one per frame.
+#     """
+#     data_dir = Path(data_dir)
+#     extensions = {".png", ".jpg", ".jpeg"}
+#     paths = sorted([p for p in data_dir.iterdir()
+#                     if p.suffix.lower() in extensions])
+
+#     if not paths:
+#         raise FileNotFoundError(f"No images found in {data_dir}")
+
+#     frames = []
+#     for p in paths:
+#         img = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+#         if img is None:
+#             raise IOError(f"Could not read image: {p}")
+#         frames.append(img.astype(np.float32))
+
+#     print(f"Loaded {len(frames)} frames from {data_dir}")
+#     return frames
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +495,12 @@ def main():
     args = parser.parse_args()
 
     # --- Load frames ---
-    frames = load_frames(args.data_dir)
+    tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
+                     cv2.IMREAD_GRAYSCALE)
+    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
+    #                  cv2.IMREAD_GRAYSCALE)
+    # undistort_maps = build_undistort_maps(K, D, tmp.shape)
+    # frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
 
     # --- Build camera matrix K ---
     if args.estimate_K:
@@ -439,7 +514,10 @@ def main():
         # VPAIR default intrinsics
         K = build_K(750.626, 750.263, 402.410, 292.988)
         print(f"Using VPAIR default K:\n{K}")
-
+    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
+    #                  cv2.IMREAD_GRAYSCALE)
+    undistort_maps = build_undistort_maps(K, D, tmp.shape)
+    frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
     # --- Load ground-truth poses (optional) ---
     if args.pose_file:
         gt_poses = load_vpair_poses(args.pose_file)

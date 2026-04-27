@@ -14,7 +14,7 @@ def ecef_to_altitude(x, y, z):
     return h  # ellipsoidal height in meters
 
 def fixed_camera_to_vehicle_rotation():
-    angle = np.radians(90.0)
+    angle = np.radians(-90.0)
 
     R_vc = np.array([
         [np.cos(angle), -np.sin(angle), 0.0],
