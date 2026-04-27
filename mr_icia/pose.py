@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from pyproj import Transformer
 import numpy as np
+from scipy.spatial.transform import Rotation as Rot
+
 
 ecef_to_lla = Transformer.from_crs(
     "EPSG:4978",  # ECEF
@@ -15,17 +17,9 @@ def ecef_to_altitude(x, y, z):
 
 def fixed_camera_to_vehicle_rotation():
     angle = np.radians(-90.0)
+    return Rot.from_euler("Z", angle, degrees=True).as_matrix()
 
-    R_vc = np.array([
-        [np.cos(angle), -np.sin(angle), 0.0],
-        [np.sin(angle),  np.cos(angle), 0.0],
-        [0.0,            0.0,           1.0],
-    ], dtype=np.float64)
-
-    return R_vc
-
-
-def recover_pose(Hp: np.ndarray, K: np.ndarray, altitude: float) -> tuple:
+def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     """
     Recover rotation matrix R, translation vector t, and Euler angles
     from the projective homography Hp, using the camera intrinsic matrix K.
@@ -69,6 +63,7 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray, altitude: float) -> tuple:
     R, t, n = _select_solution(Rs, Ts, Ns, num_solutions)
 
     # Step 5: Euler angles from R (eq. 15)
+    roll, pitch, yaw = rotation_to_euler(R)
     roll, pitch, yaw = rotation_to_euler(R)
 
     return R, t*altitude, (roll, pitch, yaw)
@@ -120,6 +115,7 @@ def _select_solution(
 
 
 def rotation_to_euler(R: np.ndarray) -> tuple:
+def rotation_to_euler(R: np.ndarray) -> tuple:
     """
     Extract roll, pitch, yaw (in degrees) from a rotation matrix.
     Convention follows eq. (15) in Martinez et al. (2011).
@@ -136,27 +132,16 @@ def rotation_to_euler(R: np.ndarray) -> tuple:
     yaw   = np.degrees(np.arctan2(R[1, 0], R[0, 0]))
     return roll, pitch, yaw
 
-def euler_to_rotation(roll: int, pitch: int, yaw: int) -> np.ndarray:
-    rx = np.radians(roll)
-    ry = np.radians(pitch)
-    rz = np.radians(yaw)
 
-    Rx = np.array([
-        [1, 0, 0],
-        [0, np.cos(rx), -np.sin(rx)],
-        [0, np.sin(rx),  np.cos(rx)]
-    ])
+def euler_to_rotation(roll, pitch, yaw, degrees=True):
+    """
+    Returns R_wb: body -> world rotation.
 
-    Ry = np.array([
-        [ np.cos(ry), 0, np.sin(ry)],
-        [0,           1, 0],
-        [-np.sin(ry), 0, np.cos(ry)]
-    ])
+    roll  around X
+    pitch around Y
+    yaw   around Z
 
-    Rz = np.array([
-        [np.cos(rz), -np.sin(rz), 0],
-        [np.sin(rz),  np.cos(rz), 0],
-        [0,           0,          1]
-    ])
-
-    return Rz @ Ry @ Rx  # ZYX convention
+    Uses ZYX aerospace convention:
+        R_wb = Rz(yaw) @ Ry(pitch) @ Rx(roll)
+    """
+    return Rot.from_euler("ZYX", [yaw, pitch, roll], degrees=degrees).as_matrix()
