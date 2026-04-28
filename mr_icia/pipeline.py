@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from homography import build_homography, compose_warp, propagate_params
 from icia import compute_jacobian_and_hessian, icia_step
-from pose import recover_pose, euler_to_rotation, rotation_to_euler
+from pose import recover_pose, euler_to_rotation, rotation_to_euler, ecef_to_altitude
 from pyramid import build_pyramid
 
 
@@ -424,6 +424,45 @@ def plot_angular_comparison(estimated_angles: list, gt_relative: list, output_pa
     print(f"Angular comparison plot saved to {output_path}")
     plt.show()
 
+def plot_positional_comparison(estimated_angles: list, gt_relative: list, output_path: str = "position_comparison.png"):
+    """
+    Plot estimated vs ground-truth positions over time for x, y, z.
+    """
+    n = min(len(estimated_angles), len(gt_relative))
+
+    frames  = list(range(n))
+    est_x = [estimated_angles[i]["x"] for i in range(n)]
+    est_y = [estimated_angles[i]["y"] for i in range(n)]
+    est_z = [estimated_angles[i]["z"] for i in range(n)]
+
+    gt_x = [gt_relative[i]["x"] for i in range(n)]
+    gt_y = [gt_relative[i]["y"] for i in range(n)]
+    gt_z = [gt_relative[i]["z"] for i in range(n)]
+
+    fig, axes = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
+    fig.suptitle("Estimated vs Ground Truth Positions", fontsize=13)
+
+    for ax, est, gt, label, color in zip(
+        axes,
+        [est_x, est_y, est_z],
+        [gt_x, gt_y, gt_z],
+        ["X (m)", "Y (m)", "Z (m)"],
+        ["steelblue", "darkorange", "seagreen"]
+    ):
+        ax.plot(frames, est, color=color, linewidth=0.8, label="Estimated")
+        ax.plot(frames, gt, color="gray", linestyle="--", linewidth=0.8, label="Ground Truth")
+        ax.set_ylabel(label)
+        ax.legend(loc="upper right", fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel("Frame index")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    print(f"Position comparison plot saved to {output_path}")
+    plt.show()
+
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -498,35 +537,23 @@ def main():
     undistort_maps = build_undistort_maps(K, D, tmp.shape)
     frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
 
-    # --- Load ground-truth poses (optional) ---
+    # --- Load ground-truth poses ---
     if args.pose_file:
         gt_poses = load_vpair_poses(args.pose_file)
-        gt_rotations = []
-        gt_positions = []
-        gt_absolute_angles = []
         altitudes = []
-        for p in gt_poses:
-            R = euler_to_rotation(p["roll"], p["pitch"], p["yaw"])
-            t = np.array([p["x"], p["y"], p["z"]])
-
-            gt_rotations.append(R)
-            gt_positions.append(t)
-            gt_absolute_angles.append((p["roll"], p["pitch"], p["yaw"]))
-            altitudes.append(ecef_to_altitude(p["x"], p["y"], p["z"]))
-
-        R_global = gt_rotations[0]
-        t_global = gt_positions[0]
-
+        for pose in gt_poses:
+            h = ecef_to_altitude(pose["x"], pose["y"], pose["z"])
+            altitudes.append(h)
     else:
-        gt_poses = []
-        R_global = np.eye(3)
-        t_global = np.zeros(3)
-        altitudes = [100.0] * len(frames)  # default altitude in metres if GT not available
+        print("No ground-truth poses provided.")
+        return
+
     # --- Run MR-ICIA on consecutive frame pairs ---
     estimated_angles = []
     results = []
     results_world = []
 
+    t_world = np.array([gt_poses[0]["x"], gt_poses[0]["y"], gt_poses[0]["z"]])  # initial world position from first GT pose
     R_wv = euler_to_rotation(gt_poses[0]["roll"], gt_poses[0]["pitch"], gt_poses[0]["yaw"], degrees=True)  # world to vehicle rotation from first GT pose
     yaw, pitch, roll = rotation_to_euler(R_wv)
     results_world.append({
@@ -534,12 +561,15 @@ def main():
         "roll":   roll,
         "pitch":  pitch,
         "yaw":    yaw,
+        "x":     float(t_world[0]),
+        "y":     float(t_world[1]),
+        "z":     float(t_world[2]),
     })
     print(f"Initial world pose from GT: roll={roll:.3f}°, pitch={pitch:.3f}°, yaw={yaw:.3f}°")
 
 
-    for i in range(len(frames) - 1):
-    # for i in range(91):
+    for i in range(len(frames) - 10):
+    # for i in range(40):
         T = frames[i]
         I = frames[i + 1]
 
@@ -549,25 +579,29 @@ def main():
 
         # Recover pose from homography
         R_c1c0, t, (roll, pitch, yaw) = recover_pose(Hp, K)
+        t_scaled = altitudes[i+1] * t
         estimated_angles.append((roll, pitch, yaw))
         results.append({
             "frame":  i,
             "roll":   roll,
             "pitch":  pitch,
             "yaw":    yaw,
-            "tx":     float(t[0]),
-            "ty":     float(t[1]),
-            "tz":     float(t[2]),
+            "x":     float(t[0]),
+            "y":     float(t[1]),
+            "z":     float(t[2]),
         })
 
+        t_world += R_wv @ t_scaled  # update world position by applying the relative translation in the current orientation
         R_wv = R_wv @ R_c1c0
-
         roll_world, pitch_world, yaw_world = rotation_to_euler(R_wv)
         results_world.append({
             "frame":  i,
             "roll":   roll_world,
             "pitch":  pitch_world,
             "yaw":    yaw_world,
+            "x":     float(t_world[0]),
+            "y":     float(t_world[1]),
+            "z":     float(t_world[2]),
         })
 
 
@@ -584,6 +618,7 @@ def main():
         print(f"  Yaw:   {rmse['yaw_rmse']:.4f}°")
         plot_errors_over_time(estimated_angles, gt_relative, output_path="moving_rmse2.png")
         plot_angular_comparison(results_world, gt_poses, output_path="moving_comparison2.png")
+        plot_positional_comparison(results_world, gt_poses, output_path="position_comparison2.png")
 
     # --- Save results to CSV ---
     out_path = Path(args.output)
