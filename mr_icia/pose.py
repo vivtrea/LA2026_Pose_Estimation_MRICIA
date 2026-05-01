@@ -35,7 +35,6 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     Returns:
         R:      3x3 rotation matrix.
         t:      3x1 translation vector (scaled by distance to plane).
-        n:      3x1 normal vector.
         angles: Tuple (roll, pitch, yaw) in degrees.
     """
     K_inv = np.linalg.inv(K)
@@ -56,13 +55,13 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     num_solutions, Rs, Ts, Ns = cv2.decomposeHomographyMat(He, np.eye(3))
 
     # Step 4: Select the physically correct solution
-    R, t, n = _select_solution(Rs, Ts, Ns, num_solutions)
+    R, t = _select_solution(Rs, Ts, Ns, num_solutions)
 
     # Step 5: Euler angles from R (eq. 15)
     roll, pitch, yaw = rotation_to_euler(R)
     roll, pitch, yaw = rotation_to_euler(R)
 
-    return R, t*altitude, (roll, pitch, yaw)
+    return R, t, (roll, pitch, yaw)
 
 
 def _select_solution(
@@ -83,7 +82,7 @@ def _select_solution(
         num_solutions: Number of valid solutions returned by OpenCV.
 
     Returns:
-        (R, t, n) of the best solution.
+        (R, t) of the best solution.
     """
     ground_normal = np.array([0.0, 0.0, 1.0])
     best_idx   = 0
@@ -107,10 +106,9 @@ def _select_solution(
             best_score = score
             best_idx   = i
 
-    return Rs[best_idx], np.array(Ts[best_idx]).ravel(), Ns[best_idx]
+    return Rs[best_idx], np.array(Ts[best_idx]).ravel()
 
 
-def rotation_to_euler(R: np.ndarray) -> tuple:
 def rotation_to_euler(R: np.ndarray) -> tuple:
     """
     Extract roll, pitch, yaw (in degrees) from a rotation matrix.

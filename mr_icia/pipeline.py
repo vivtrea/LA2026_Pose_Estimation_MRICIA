@@ -310,6 +310,19 @@ def load_vpair_poses(pose_file: str) -> list:
             })
     return poses
 
+def compute_relative_angles(gt_poses: list) -> list:
+    """
+    Convert absolute GT poses into relative frame-to-frame rotations.
+    Assumes angles are already in degrees (converted in load_vpair_poses).
+    """
+    relative = []
+    for i in range(len(gt_poses) - 1):
+        d_roll  = gt_poses[i+1]["roll"]  - gt_poses[i]["roll"]
+        d_pitch = gt_poses[i+1]["pitch"] - gt_poses[i]["pitch"]
+        d_yaw   = gt_poses[i+1]["yaw"]   - gt_poses[i]["yaw"]
+        relative.append((d_roll, d_pitch, d_yaw))
+    return relative
+
 
 def compute_rmse_vpair(
     estimated_step_angles: list,
@@ -569,7 +582,7 @@ def main():
 
 
     for i in range(len(frames) - 10):
-    # for i in range(40):
+    # for i in range(10):
         T = frames[i]
         I = frames[i + 1]
 
@@ -611,7 +624,8 @@ def main():
 
     # --- RMSE evaluation ---
     if gt_poses:
-        rmse = compute_rmse_vpair(estimated_step_angles, gt_absolute_angles[1:])
+        gt_relative = compute_relative_angles(gt_poses)
+        rmse = compute_rmse_vpair(estimated_angles, gt_relative)
         print("\n--- RMSE vs ground truth ---")
         print(f"  Roll:  {rmse['roll_rmse']:.4f}°")
         print(f"  Pitch: {rmse['pitch_rmse']:.4f}°")
@@ -623,9 +637,9 @@ def main():
     # --- Save results to CSV ---
     out_path = Path(args.output)
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=absolute_pose_results[0].keys())
+        writer = csv.DictWriter(f, fieldnames=gt_poses[0].keys())
         writer.writeheader()
-        writer.writerows(absolute_pose_results)
+        writer.writerows(gt_poses)
     print(f"\nResults saved to {out_path}")
 
 
