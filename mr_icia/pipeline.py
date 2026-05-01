@@ -23,8 +23,10 @@ import matplotlib.pyplot as plt
 
 from homography import build_homography, compose_warp, propagate_params
 from icia import compute_jacobian_and_hessian, icia_step
-from pose import recover_pose, rotation_to_euler, euler_to_rotation, ecef_to_altitude, fixed_camera_to_vehicle_rotation
+from pose import recover_pose, euler_to_rotation, rotation_to_euler, ecef_to_altitude
 from pyramid import build_pyramid
+
+
 
 D = np.array([
     -0.11592226392258145,
@@ -32,9 +34,12 @@ D = np.array([
     -0.00043977637330175616,
      0.0002380609784102606,
 ], dtype=np.float64)
+
+
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
+
 def build_undistort_maps(
     K: np.ndarray,
     D: np.ndarray,
@@ -101,34 +106,31 @@ def load_frames(
         print("  Undistortion applied to all frames.")
     return frames
 
-# def load_frames(data_dir: str) -> list:
-#     """
-#     Load all grayscale frames from a directory, sorted by filename.
-#     Supports .png, .jpg, .jpeg.
 
-#     Args:
-#         data_dir: Path to directory containing aerial image frames.
+def load_ground_truth(pose_file: str) -> list:
+    """
+    Load VPAIR ground-truth 6-DoF poses from a CSV file.
+    Expected columns: frame_id, tx, ty, tz, roll, pitch, yaw
 
-#     Returns:
-#         List of grayscale float32 numpy arrays, one per frame.
-#     """
-#     data_dir = Path(data_dir)
-#     extensions = {".png", ".jpg", ".jpeg"}
-#     paths = sorted([p for p in data_dir.iterdir()
-#                     if p.suffix.lower() in extensions])
+    Args:
+        pose_file: Path to CSV file with ground-truth poses.
 
-#     if not paths:
-#         raise FileNotFoundError(f"No images found in {data_dir}")
+    Returns:
+        List of dicts with keys: tx, ty, tz, roll, pitch, yaw.
+        Returns empty list if file does not exist.
+    """
+    if not os.path.exists(pose_file):
+        print(f"Warning: pose file not found at {pose_file}. "
+              "RMSE evaluation will be skipped.")
+        return []
 
-#     frames = []
-#     for p in paths:
-#         img = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
-#         if img is None:
-#             raise IOError(f"Could not read image: {p}")
-#         frames.append(img.astype(np.float32))
-
-#     print(f"Loaded {len(frames)} frames from {data_dir}")
-#     return frames
+    poses = []
+    with open(pose_file, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            poses.append({k: float(v) for k, v in row.items()
+                          if k != "frame_id"})
+    return poses
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +310,19 @@ def load_vpair_poses(pose_file: str) -> list:
             })
     return poses
 
+def compute_relative_angles(gt_poses: list) -> list:
+    """
+    Convert absolute GT poses into relative frame-to-frame rotations.
+    Assumes angles are already in degrees (converted in load_vpair_poses).
+    """
+    relative = []
+    for i in range(len(gt_poses) - 1):
+        d_roll  = gt_poses[i+1]["roll"]  - gt_poses[i]["roll"]
+        d_pitch = gt_poses[i+1]["pitch"] - gt_poses[i]["pitch"]
+        d_yaw   = gt_poses[i+1]["yaw"]   - gt_poses[i]["yaw"]
+        relative.append((d_roll, d_pitch, d_yaw))
+    return relative
+
 
 def compute_rmse_vpair(
     estimated_step_angles: list,
@@ -385,59 +400,80 @@ def plot_errors_over_time(
     print(f"Error plot saved to {output_path}")
     plt.show()
 
-
-def plot_absolute_positions(
-    estimated_positions: list,
-    ground_truth_positions: list,
-    output_path: str = "absolute_positions.png",
-):
+def plot_angular_comparison(estimated_angles: list, gt_relative: list, output_path: str = "angular_comparison.png"):
     """
-    Plot estimated and ground-truth absolute UAV positions over time.
-
-    Args:
-        estimated_positions: Sequence of `(x, y, z)` tuples in metres.
-        ground_truth_positions: Sequence of GT `(x, y, z)` tuples in metres,
-            aligned to the same frame indices as `estimated_positions`.
-        output_path: Destination path for the PNG figure.
+    Plot estimated vs ground-truth angles over time for roll, pitch, yaw.
     """
-    n = min(len(estimated_positions), len(ground_truth_positions))
-    if n == 0:
-        return
+    n = min(len(estimated_angles), len(gt_relative))
 
-    frames = list(range(n))
-    est = np.array(estimated_positions[:n], dtype=np.float64)
-    gt = np.array(ground_truth_positions[:n], dtype=np.float64)
+    frames  = list(range(n))
+    est_roll  = [estimated_angles[i]["roll"] for i in range(n)]
+    est_pitch = [estimated_angles[i]["pitch"] for i in range(n)]
+    est_yaw   = [estimated_angles[i]["yaw"] for i in range(n)]
 
-    fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=False)
-    fig.suptitle("Absolute UAV position: estimated vs ground truth", fontsize=13)
+    gt_roll  = [gt_relative[i]["roll"] for i in range(n)]
+    gt_pitch = [gt_relative[i]["pitch"] for i in range(n)]
+    gt_yaw   = [gt_relative[i]["yaw"] for i in range(n)]
 
-    components = [
-        (0, "X position (m)", "steelblue"),
-        (1, "Y position (m)", "darkorange"),
-        (2, "Z position (m)", "seagreen"),
-    ]
+    fig, axes = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
+    fig.suptitle("Estimated vs Ground Truth Angles", fontsize=13)
 
-    for ax, (idx, label, color) in zip(axes[:3], components):
-        ax.plot(frames, gt[:, idx], color="black", linewidth=1.0, label="Ground truth")
-        ax.plot(frames, est[:, idx], color=color, linewidth=0.9, label="Estimated")
+    for ax, est, gt, label, color in zip(
+        axes,
+        [est_roll, est_pitch, est_yaw],
+        [gt_roll, gt_pitch, gt_yaw],
+        ["Roll (°)", "Pitch (°)", "Yaw (°)"],
+        ["steelblue", "darkorange", "seagreen"]
+    ):
+        ax.plot(frames, est, color=color, linewidth=0.8, label="Estimated")
+        ax.plot(frames, gt, color="gray", linestyle="--", linewidth=0.8, label="Ground Truth")
         ax.set_ylabel(label)
         ax.legend(loc="upper right", fontsize=8)
         ax.grid(True, alpha=0.3)
 
-    axes[2].set_xlabel("Frame index")
-
-    axes[3].plot(gt[:, 0], gt[:, 1], color="black", linewidth=1.0, label="Ground truth XY")
-    axes[3].plot(est[:, 0], est[:, 1], color="purple", linewidth=0.9, label="Estimated XY")
-    axes[3].set_xlabel("X position (m)")
-    axes[3].set_ylabel("Y position (m)")
-    axes[3].legend(loc="upper right", fontsize=8)
-    axes[3].grid(True, alpha=0.3)
-    axes[3].set_title("Top-down XY trajectory", fontsize=11)
-
+    axes[-1].set_xlabel("Frame index")
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
-    print(f"Absolute position plot saved to {output_path}")
+    print(f"Angular comparison plot saved to {output_path}")
     plt.show()
+
+def plot_positional_comparison(estimated_angles: list, gt_relative: list, output_path: str = "position_comparison.png"):
+    """
+    Plot estimated vs ground-truth positions over time for x, y, z.
+    """
+    n = min(len(estimated_angles), len(gt_relative))
+
+    frames  = list(range(n))
+    est_x = [estimated_angles[i]["x"] for i in range(n)]
+    est_y = [estimated_angles[i]["y"] for i in range(n)]
+    est_z = [estimated_angles[i]["z"] for i in range(n)]
+
+    gt_x = [gt_relative[i]["x"] for i in range(n)]
+    gt_y = [gt_relative[i]["y"] for i in range(n)]
+    gt_z = [gt_relative[i]["z"] for i in range(n)]
+
+    fig, axes = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
+    fig.suptitle("Estimated vs Ground Truth Positions", fontsize=13)
+
+    for ax, est, gt, label, color in zip(
+        axes,
+        [est_x, est_y, est_z],
+        [gt_x, gt_y, gt_z],
+        ["X (m)", "Y (m)", "Z (m)"],
+        ["steelblue", "darkorange", "seagreen"]
+    ):
+        ax.plot(frames, est, color=color, linewidth=0.8, label="Estimated")
+        ax.plot(frames, gt, color="gray", linestyle="--", linewidth=0.8, label="Ground Truth")
+        ax.set_ylabel(label)
+        ax.legend(loc="upper right", fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel("Frame index")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    print(f"Position comparison plot saved to {output_path}")
+    plt.show()
+
 
 
 # ---------------------------------------------------------------------------
@@ -494,19 +530,11 @@ def main():
     )
     args = parser.parse_args()
 
-    # --- Load frames ---
-    tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-                     cv2.IMREAD_GRAYSCALE)
-    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-    #                  cv2.IMREAD_GRAYSCALE)
-    # undistort_maps = build_undistort_maps(K, D, tmp.shape)
-    # frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
 
     # --- Build camera matrix K ---
     if args.estimate_K:
-        h, w = frames[0].shape
-        K = estimate_K_from_fov(w, h, args.fov)
-        print(f"Using estimated K from FoV={args.fov}°:\n{K}")
+        print("Error: --estimate_K option is not implemented yet. Please provide --fx, --fy, --cx, --cy.")
+        return
     elif args.fx > 0:
         K = build_K(args.fx, args.fy, args.cx, args.cy)
         print(f"Using provided K:\n{K}")
@@ -514,126 +542,104 @@ def main():
         # VPAIR default intrinsics
         K = build_K(750.626, 750.263, 402.410, 292.988)
         print(f"Using VPAIR default K:\n{K}")
-    # tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
-    #                  cv2.IMREAD_GRAYSCALE)
+
+
+    # --- Load frames ---
+    tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
+                    cv2.IMREAD_GRAYSCALE)
     undistort_maps = build_undistort_maps(K, D, tmp.shape)
     frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
-    # --- Load ground-truth poses (optional) ---
+
+    # --- Load ground-truth poses ---
     if args.pose_file:
         gt_poses = load_vpair_poses(args.pose_file)
-        gt_rotations = []
-        gt_positions = []
-        gt_absolute_angles = []
         altitudes = []
-        for p in gt_poses:
-            R = euler_to_rotation(p["roll"], p["pitch"], p["yaw"])
-            t = np.array([p["x"], p["y"], p["z"]])
-
-            gt_rotations.append(R)
-            gt_positions.append(t)
-            gt_absolute_angles.append((p["roll"], p["pitch"], p["yaw"]))
-            altitudes.append(ecef_to_altitude(p["x"], p["y"], p["z"]))
-
-        R_global = gt_rotations[0]
-        t_global = gt_positions[0]
-
+        for pose in gt_poses:
+            h = ecef_to_altitude(pose["x"], pose["y"], pose["z"])
+            altitudes.append(h)
     else:
-        gt_poses = []
-        R_global = np.eye(3)
-        t_global = np.zeros(3)
-        altitudes = [100.0] * len(frames)  # default altitude in metres if GT not available
+        print("No ground-truth poses provided.")
+        return
+
     # --- Run MR-ICIA on consecutive frame pairs ---
-    estimated_step_angles = []
-    step_pose_results = []
-    absolute_pose_results = []
+    estimated_angles = []
+    results = []
+    results_world = []
 
-    R_vc = fixed_camera_to_vehicle_rotation()
-    R_cv = R_vc.T
+    t_world = np.array([gt_poses[0]["x"], gt_poses[0]["y"], gt_poses[0]["z"]])  # initial world position from first GT pose
+    R_wv = euler_to_rotation(gt_poses[0]["roll"], gt_poses[0]["pitch"], gt_poses[0]["yaw"], degrees=True)  # world to vehicle rotation from first GT pose
+    yaw, pitch, roll = rotation_to_euler(R_wv)
+    results_world.append({
+        "frame":  0,
+        "roll":   roll,
+        "pitch":  pitch,
+        "yaw":    yaw,
+        "x":     float(t_world[0]),
+        "y":     float(t_world[1]),
+        "z":     float(t_world[2]),
+    })
+    print(f"Initial world pose from GT: roll={roll:.3f}°, pitch={pitch:.3f}°, yaw={yaw:.3f}°")
 
 
-    for i in range(91):
-        T_full = frames[i]
-        I_full = frames[i + 1]
+    for i in range(len(frames) - 10):
+    # for i in range(10):
+        T = frames[i]
+        I = frames[i + 1]
 
-        # Crop central 80% of template (as in paper)
-        T, _ = crop_template(T_full, ratio=0.8, K=K)
-        I, K_crop = crop_template(I_full, ratio=0.8, K=K)
 
         # Run MR-ICIA to get projective homography
         Hp = mr_icia(T, I, levels=args.levels, max_iters=args.max_iters)
 
         # Recover pose from homography
-        R, t, (roll, pitch, yaw) = recover_pose(Hp, K_crop, altitudes[i+1])
-
-        estimated_step_angles.append((roll, pitch, yaw))
-        step_pose_results.append({
+        R_c1c0, t, (roll, pitch, yaw) = recover_pose(Hp, K)
+        t_scaled = altitudes[i+1] * t
+        estimated_angles.append((roll, pitch, yaw))
+        results.append({
             "frame":  i,
             "roll":   roll,
             "pitch":  pitch,
             "yaw":    yaw,
-            "tx":     float(t[0]),
-            "ty":     float(t[1]),
-            "tz":     float(t[2]),
+            "x":     float(t[0]),
+            "y":     float(t[1]),
+            "z":     float(t[2]),
         })
 
-        R_prev = R_global.copy()
-        R_wc0 = R_prev @ R_vc
-        t_global = t_global + R_wc0 @ t
-
-        # R_global = R_prev @ R
-        R_global = R_global @ R_vc @ R @ R_cv
-
-        roll_global, pitch_global, yaw_global = rotation_to_euler(R_global)
-        absolute_pose_results.append({
+        t_world += R_wv @ t_scaled  # update world position by applying the relative translation in the current orientation
+        R_wv = R_wv @ R_c1c0
+        roll_world, pitch_world, yaw_world = rotation_to_euler(R_wv)
+        results_world.append({
             "frame":  i,
-            "roll":   roll_global,
-            "pitch":  pitch_global,
-            "yaw":    yaw_global,
-            "tx":     float(t_global[0]),
-            "ty":     float(t_global[1]),
-            "tz":     float(t_global[2]),
+            "roll":   roll_world,
+            "pitch":  pitch_world,
+            "yaw":    yaw_world,
+            "x":     float(t_world[0]),
+            "y":     float(t_world[1]),
+            "z":     float(t_world[2]),
         })
 
-        # print(f"Frame {i:04d} -> {i+1:04d} | "
-        #       f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}°")
 
         print(f"Frame {i:04d} -> {i+1:04d} | "
-              f"roll={roll_global:7.3f}°  pitch={pitch_global:7.3f}°  yaw={yaw_global:7.3f}°")
-        # print(f"normal vector: {n} | altitude: {float(altitude):.2f} m")
-        print(f"translation (t): {t} | global position: {t_global} | altitude: {float(altitudes[i+1]):.2f} m\n")
-        print(f"ground tranlation: {gt_positions[i+1] - gt_positions[i]} | ground altitude: {float(altitudes[i+1]):.2f} m\n")
-        print(f"t.norm")
+              f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}° | "
+              f"roll_world={roll_world:7.3f}°  pitch_world={pitch_world:7.3f}°  yaw_world={yaw_world:7.3f}°")
 
     # --- RMSE evaluation ---
     if gt_poses:
-        rmse = compute_rmse_vpair(estimated_step_angles, gt_absolute_angles[1:])
+        gt_relative = compute_relative_angles(gt_poses)
+        rmse = compute_rmse_vpair(estimated_angles, gt_relative)
         print("\n--- RMSE vs ground truth ---")
         print(f"  Roll:  {rmse['roll_rmse']:.4f}°")
         print(f"  Pitch: {rmse['pitch_rmse']:.4f}°")
         print(f"  Yaw:   {rmse['yaw_rmse']:.4f}°")
-        plot_errors_over_time(
-            estimated_step_angles,
-            gt_absolute_angles[1:],
-            output_path="moving_rmse2.png",
-        )
-        plot_absolute_positions(
-            estimated_positions=[
-                (row["tx"], row["ty"], row["tz"])
-                for row in absolute_pose_results
-            ],
-            ground_truth_positions=[
-                (p[0], p[1], p[2])
-                for p in gt_positions[1:]
-            ],
-            output_path="absolute_position_comparison.png",
-        )
+        plot_errors_over_time(estimated_angles, gt_relative, output_path="moving_rmse2.png")
+        plot_angular_comparison(results_world, gt_poses, output_path="moving_comparison2.png")
+        plot_positional_comparison(results_world, gt_poses, output_path="position_comparison2.png")
 
     # --- Save results to CSV ---
     out_path = Path(args.output)
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=absolute_pose_results[0].keys())
+        writer = csv.DictWriter(f, fieldnames=gt_poses[0].keys())
         writer.writeheader()
-        writer.writerows(absolute_pose_results)
+        writer.writerows(gt_poses)
     print(f"\nResults saved to {out_path}")
 
 

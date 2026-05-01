@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
+from scipy.spatial.transform import Rotation as Rot
+
 from pyproj import Transformer
-import numpy as np
 
 ecef_to_lla = Transformer.from_crs(
     "EPSG:4978",  # ECEF
@@ -13,19 +14,8 @@ def ecef_to_altitude(x, y, z):
     lon, lat, h = ecef_to_lla.transform(x, y, z)
     return h  # ellipsoidal height in meters
 
-def fixed_camera_to_vehicle_rotation():
-    angle = np.radians(-90.0)
 
-    R_vc = np.array([
-        [np.cos(angle), -np.sin(angle), 0.0],
-        [np.sin(angle),  np.cos(angle), 0.0],
-        [0.0,            0.0,           1.0],
-    ], dtype=np.float64)
-
-    return R_vc
-
-
-def recover_pose(Hp: np.ndarray, K: np.ndarray, altitude: float) -> tuple:
+def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     """
     Recover rotation matrix R, translation vector t, and Euler angles
     from the projective homography Hp, using the camera intrinsic matrix K.
@@ -45,7 +35,6 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray, altitude: float) -> tuple:
     Returns:
         R:      3x3 rotation matrix.
         t:      3x1 translation vector (scaled by distance to plane).
-        n:      3x1 normal vector.
         angles: Tuple (roll, pitch, yaw) in degrees.
     """
     K_inv = np.linalg.inv(K)
@@ -66,12 +55,13 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray, altitude: float) -> tuple:
     num_solutions, Rs, Ts, Ns = cv2.decomposeHomographyMat(He, np.eye(3))
 
     # Step 4: Select the physically correct solution
-    R, t, n = _select_solution(Rs, Ts, Ns, num_solutions)
+    R, t = _select_solution(Rs, Ts, Ns, num_solutions)
 
     # Step 5: Euler angles from R (eq. 15)
     roll, pitch, yaw = rotation_to_euler(R)
+    roll, pitch, yaw = rotation_to_euler(R)
 
-    return R, t*altitude, (roll, pitch, yaw)
+    return R, t, (roll, pitch, yaw)
 
 
 def _select_solution(
@@ -92,7 +82,7 @@ def _select_solution(
         num_solutions: Number of valid solutions returned by OpenCV.
 
     Returns:
-        (R, t, n) of the best solution.
+        (R, t) of the best solution.
     """
     ground_normal = np.array([0.0, 0.0, 1.0])
     best_idx   = 0
@@ -116,7 +106,7 @@ def _select_solution(
             best_score = score
             best_idx   = i
 
-    return Rs[best_idx], np.array(Ts[best_idx]).ravel(), Ns[best_idx]
+    return Rs[best_idx], np.array(Ts[best_idx]).ravel()
 
 
 def rotation_to_euler(R: np.ndarray) -> tuple:
@@ -136,27 +126,16 @@ def rotation_to_euler(R: np.ndarray) -> tuple:
     yaw   = np.degrees(np.arctan2(R[1, 0], R[0, 0]))
     return roll, pitch, yaw
 
-def euler_to_rotation(roll: int, pitch: int, yaw: int) -> np.ndarray:
-    rx = np.radians(roll)
-    ry = np.radians(pitch)
-    rz = np.radians(yaw)
 
-    Rx = np.array([
-        [1, 0, 0],
-        [0, np.cos(rx), -np.sin(rx)],
-        [0, np.sin(rx),  np.cos(rx)]
-    ])
+def euler_to_rotation(roll, pitch, yaw, degrees=True):
+    """
+    Returns R_wb: body -> world rotation.
 
-    Ry = np.array([
-        [ np.cos(ry), 0, np.sin(ry)],
-        [0,           1, 0],
-        [-np.sin(ry), 0, np.cos(ry)]
-    ])
+    roll  around X
+    pitch around Y
+    yaw   around Z
 
-    Rz = np.array([
-        [np.cos(rz), -np.sin(rz), 0],
-        [np.sin(rz),  np.cos(rz), 0],
-        [0,           0,          1]
-    ])
-
-    return Rz @ Ry @ Rx  # ZYX convention
+    Uses ZYX aerospace convention:
+        R_wb = Rz(yaw) @ Ry(pitch) @ Rx(roll)
+    """
+    return Rot.from_euler("ZYX", [yaw, pitch, roll], degrees=degrees).as_matrix()
