@@ -3,11 +3,11 @@ pipeline.py — Main entry point for UAV pose estimation via MR-ICIA.
 
 Usage:
     python pipeline.py --data_dir /path/to/vpair/query \
-                       --fx 868.99 --fy 868.99 \
-                       --cx 525.0  --cy 399.0
+                       --fx 750.626 --fy 750.263 \
+                       --cx 402.410  --cy 292.988
 
 VPAIR camera intrinsics (from dataset metadata):
-    fx = 868.99, fy = 868.99, cx = 525.0, cy = 399.0
+    fx = 750.626, fy = 750.263, cx = 402.410, cy = 292.988
     Image resolution: 1024 x 800
 
 If you don't have intrinsics yet, use --estimate_K to approximate from FoV.
@@ -36,9 +36,7 @@ D = np.array([
 ], dtype=np.float64)
 
 
-# ---------------------------------------------------------------------------
 # Data loading
-# ---------------------------------------------------------------------------
 
 def build_undistort_maps(
     K: np.ndarray,
@@ -94,7 +92,7 @@ def load_frames(
         if img is None:
             raise IOError(f"Could not read image: {p}")
 
-        # Apply undistortion if maps are provided
+        # apply undistortion
         if undistort_maps is not None:
             map1, map2 = undistort_maps
             img = cv2.remap(img, map1, map2, cv2.INTER_LINEAR)
@@ -133,9 +131,7 @@ def load_ground_truth(pose_file: str) -> list:
     return poses
 
 
-# ---------------------------------------------------------------------------
 # Camera matrix
-# ---------------------------------------------------------------------------
 
 def build_K(fx: float, fy: float, cx: float, cy: float) -> np.ndarray:
     """
@@ -174,9 +170,7 @@ def estimate_K_from_fov(image_w: int, image_h: int,
     return build_K(fx, fx, image_w / 2.0, image_h / 2.0)
 
 
-# ---------------------------------------------------------------------------
 # Template cropping
-# ---------------------------------------------------------------------------
 
 def crop_template(img: np.ndarray, ratio: float = 0.8, K: np.ndarray = None) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -202,9 +196,7 @@ def crop_template(img: np.ndarray, ratio: float = 0.8, K: np.ndarray = None) -> 
     return img[dh:h - dh, dw:w - dw], K_crop
 
 
-# ---------------------------------------------------------------------------
 # MR-ICIA core loop
-# ---------------------------------------------------------------------------
 
 def mr_icia(
     template:  np.ndarray,
@@ -235,16 +227,16 @@ def mr_icia(
     Returns:
         Hp: 3x3 projective homography matrix.
     """
-    T_pyr = build_pyramid(template, levels)  # pyramid.py
-    I_pyr = build_pyramid(current,  levels)  # pyramid.py
+    T_pyr = build_pyramid(template, levels) 
+    I_pyr = build_pyramid(current,  levels)
 
-    p = np.zeros(8, dtype=np.float64)  # start at identity warp
+    p = np.zeros(8, dtype=np.float64)
 
-    for level in range(levels):  # index 0 = coarsest
+    for level in range(levels):
         T_l = T_pyr[level]
         I_l = I_pyr[level]
 
-        # Precompute J and H once per pyramid level (ICIA advantage)
+        #precompute J and H once per pyramid level (ICIA advantage)
         J_flat, H_mat = compute_jacobian_and_hessian(T_l)  # icia.py
         H_inv = np.linalg.inv(H_mat)
 
@@ -252,14 +244,14 @@ def mr_icia(
         no_improve_count = 0
 
         for iteration in range(max_iters):
-            delta_p, mse = icia_step(T_l, I_l, p, J_flat, H_inv)  # icia.py
-            p = compose_warp(p, delta_p)                           # homography.py
+            delta_p, mse = icia_step(T_l, I_l, p, J_flat, H_inv) 
+            p = compose_warp(p, delta_p)
 
-            # Termination criterion T1: parameter increment below threshold
+            # termination criterion T1: parameter increment below threshold
             if np.linalg.norm(delta_p) < tol:
                 break
 
-            # Termination criterion T2: no improvement in MSE for 10 iters
+            # termination criterion T2: no improvement in MSE for 10 iters
             if mse >= prev_mse:
                 no_improve_count += 1
                 if no_improve_count >= 10:
@@ -268,16 +260,14 @@ def mr_icia(
                 no_improve_count = 0
             prev_mse = mse
 
-        # Propagate parameters to next finer level
+        # propagate parameters to next finer level
         if level < levels - 1:
-            p = propagate_params(p)  # homography.py
+            p = propagate_params(p) 
 
-    return build_homography(p)  # homography.py
+    return build_homography(p) 
 
 
-# ---------------------------------------------------------------------------
 # RMSE evaluation
-# ---------------------------------------------------------------------------
 
 def load_vpair_poses(pose_file: str) -> list:
     """
@@ -475,10 +465,7 @@ def plot_positional_comparison(estimated_angles: list, gt_relative: list, output
     plt.show()
 
 
-
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(
@@ -531,7 +518,7 @@ def main():
     args = parser.parse_args()
 
 
-    # --- Build camera matrix K ---
+    # Build camera matrix K 
     if args.estimate_K:
         print("Error: --estimate_K option is not implemented yet. Please provide --fx, --fy, --cx, --cy.")
         return
@@ -539,18 +526,18 @@ def main():
         K = build_K(args.fx, args.fy, args.cx, args.cy)
         print(f"Using provided K:\n{K}")
     else:
-        # VPAIR default intrinsics
+        #VPAIR default intrinsics
         K = build_K(750.626, 750.263, 402.410, 292.988)
         print(f"Using VPAIR default K:\n{K}")
 
 
-    # --- Load frames ---
+    #Load frames
     tmp = cv2.imread(str(sorted(Path(args.data_dir).iterdir())[0]),
                     cv2.IMREAD_GRAYSCALE)
     undistort_maps = build_undistort_maps(K, D, tmp.shape)
     frames = load_frames(args.data_dir, undistort_maps=undistort_maps)
 
-    # --- Load ground-truth poses ---
+    # Load ground-truth poses
     if args.pose_file:
         gt_poses = load_vpair_poses(args.pose_file)
         altitudes = []
@@ -561,7 +548,7 @@ def main():
         print("No ground-truth poses provided.")
         return
 
-    # --- Run MR-ICIA on consecutive frame pairs ---
+    #Run MR-ICIA on consecutive frame pairs
     estimated_angles = []
     results = []
     results_world = []
@@ -587,10 +574,10 @@ def main():
         I = frames[i + 1]
 
 
-        # Run MR-ICIA to get projective homography
+        # run MR-ICIA to get projective homography
         Hp = mr_icia(T, I, levels=args.levels, max_iters=args.max_iters)
 
-        # Recover pose from homography
+        # recover pose from homography
         R_c1c0, t, (roll, pitch, yaw) = recover_pose(Hp, K)
         t_scaled = altitudes[i+1] * t
         estimated_angles.append((roll, pitch, yaw))
@@ -622,7 +609,7 @@ def main():
               f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}° | "
               f"roll_world={roll_world:7.3f}°  pitch_world={pitch_world:7.3f}°  yaw_world={yaw_world:7.3f}°")
 
-    # --- RMSE evaluation ---
+    #RMSE evaluation
     if gt_poses:
         gt_relative = compute_relative_angles(gt_poses)
         rmse = compute_rmse_vpair(estimated_angles, gt_relative)
@@ -634,7 +621,7 @@ def main():
         plot_angular_comparison(results_world, gt_poses, output_path="moving_comparison2.png")
         plot_positional_comparison(results_world, gt_poses, output_path="position_comparison2.png")
 
-    # --- Save results to CSV ---
+    # Save results to CSV
     out_path = Path(args.output)
     with open(out_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=gt_poses[0].keys())

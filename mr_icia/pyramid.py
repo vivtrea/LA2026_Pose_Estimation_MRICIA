@@ -22,6 +22,6 @@ def build_pyramid(image: np.ndarray, levels: int) -> list:
     for _ in range(levels - 1):
         pyramid.append(cv2.pyrDown(pyramid[-1]))
 
-    # Reverse so index 0 = coarsest (lowest resolution)
+    # reverse so index 0 = coarsest (lowest resolution)
     pyramid.reverse()
     return pyramid

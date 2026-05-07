@@ -27,36 +27,30 @@ def compute_jacobian_and_hessian(template: np.ndarray):
     """
     h, w = template.shape
 
-    # Image gradients at identity warp W(x; 0)
     gx = cv2.Sobel(template, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(template, cv2.CV_32F, 0, 1, ksize=3)
 
-    # Pixel coordinate grids
+    #pixel coordinate grids
     xs, ys = np.meshgrid(np.arange(w, dtype=np.float32),
                          np.arange(h, dtype=np.float32))
 
-    # Per-pixel Jacobian dW/dp shape (H, W, 2, 8)
-    # Row 0 = x-component, Row 1 = y-component
+    #per-pixel Jacobian dW/dp shape (H, W, 2, 8)
+    #row 0 = x-component, row 1 = y-component
     zeros = np.zeros_like(xs)
     ones  = np.ones_like(xs)
 
     dW = np.stack([
-        # p0      p1    p2    p3      p4    p5    p6           p7
         [xs,      ys,   ones, zeros, zeros, zeros, -xs*xs, -xs*ys],
         [zeros, zeros, zeros,    xs,    ys,  ones, -xs*ys, -ys*ys],
-    ], axis=0)                          # (2, 8, H, W)
-    dW = dW.transpose(2, 3, 0, 1)      # (H, W, 2, 8)
+    ], axis=0)
+    dW = dW.transpose(2, 3, 0, 1)
 
-    # grad_T shape: (H, W, 1, 2)
     grad_T = np.stack([gx, gy], axis=-1)[:, :, np.newaxis, :]
 
-    # J = grad_T @ dW  ->  (H, W, 1, 8)  ->  (H, W, 8)
     J = (grad_T @ dW)[:, :, 0, :]
 
-    # Flatten to (H*W, 8) for matrix operations
     J_flat = J.reshape(-1, 8)
 
-    # Hessian (8, 8) — constant for this pyramid level
     H_mat = J_flat.T @ J_flat
 
     return J_flat, H_mat
@@ -90,10 +84,10 @@ def icia_step(
     H_mat  = build_homography(p)
     warped = warp_image(current, H_mat, template.shape)
 
-    # Pixel-wise error: I(W(x;p)) - T(x), flattened
+    #pixel-wise error: I(W(x;p)) - T(x), flattened
     error = (warped - template).ravel()
 
-    # Least-squares solve for delta_p
+    #least-squares solution for delta_p
     delta_p = H_inv @ (J_flat.T @ error)
 
     mse = float(np.mean(error ** 2))

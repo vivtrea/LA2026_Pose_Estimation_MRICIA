@@ -39,25 +39,24 @@ def recover_pose(Hp: np.ndarray, K: np.ndarray) -> tuple:
     """
     K_inv = np.linalg.inv(K)
 
-    # Step 1: Euclidean homography (eq. 13)
+    # euclidean homography 
     HL = K_inv @ Hp @ K
 
-    # Step 2: Normalise by median singular value to remove scale (eq. 13)
+    # normalise by median singular value to remove scale
     _, sv, _ = np.linalg.svd(HL)
     gamma = np.median(sv)
-    # TODO
     if abs(gamma) < 1e-8:
         gamma = 1.0  # guard against degenerate case
     He = HL / gamma
 
-    # Step 3: Decompose He — OpenCV returns 4 solutions
-    # We pass identity as K here because He is already in Euclidean space
+    # decompose He — OpenCV returns 4 solutions
+    # we pass identity as K here because He is already in Euclidean space
     num_solutions, Rs, Ts, Ns = cv2.decomposeHomographyMat(He, np.eye(3))
 
-    # Step 4: Select the physically correct solution
+    # select the physically correct solution
     R, t = _select_solution(Rs, Ts, Ns, num_solutions)
 
-    # Step 5: Euler angles from R (eq. 15)
+    # euler angles from R 
     roll, pitch, yaw = rotation_to_euler(R)
     roll, pitch, yaw = rotation_to_euler(R)
 
@@ -96,11 +95,11 @@ def _select_solution(
         n = np.array(Ns[i]).ravel()
         t = np.array(Ts[i]).ravel()
 
-        # Positive depth constraint
+        # positive depth constraint
         if t[2] <= 0:
             continue
 
-        # Alignment with ground normal [0, 0, 1]
+        # alignment with ground normal [0, 0, 1]
         score = float(np.dot(n, ground_normal))
         if score > best_score:
             best_score = score

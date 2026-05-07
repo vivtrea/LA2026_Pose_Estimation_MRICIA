@@ -66,17 +66,17 @@ def compose_warp(p: np.ndarray, delta_p: np.ndarray) -> np.ndarray:
     H_dp = build_homography(delta_p)
 
     H_new = H_p @ np.linalg.inv(H_dp)
-    H_new /= H_new[2, 2]  # normalise so bottom-right element = 1
+    H_new /= H_new[2, 2]
 
     p_new = np.array([
-        H_new[0, 0] - 1.0,  # p0
-        H_new[0, 1],         # p1
-        H_new[0, 2],         # p2
-        H_new[1, 0],         # p3
-        H_new[1, 1] - 1.0,  # p4
-        H_new[1, 2],         # p5
-        H_new[2, 0],         # p6
-        H_new[2, 1],         # p7
+        H_new[0, 0] - 1.0,
+        H_new[0, 1],
+        H_new[0, 2],
+        H_new[1, 0],
+        H_new[1, 1] - 1.0,
+        H_new[1, 2],
+        H_new[2, 0],
+        H_new[2, 1],
     ])
     return p_new
 
@@ -97,8 +97,8 @@ def propagate_params(p: np.ndarray) -> np.ndarray:
         Scaled 8-parameter vector for the next (finer) pyramid level.
     """
     p_new = p.copy()
-    p_new[2] *= 2.0   # x-translation
-    p_new[5] *= 2.0   # y-translation
-    p_new[6] /= 2.0   # perspective x
-    p_new[7] /= 2.0   # perspective y
+    p_new[2] *= 2.0 #x-translation
+    p_new[5] *= 2.0 #y-translation
+    p_new[6] /= 2.0 #perspective x
+    p_new[7] /= 2.0 #perspective y
     return p_new

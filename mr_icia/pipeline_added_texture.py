@@ -1,16 +1,15 @@
 """
-pipeline.py — Main entry point for UAV pose estimation via MR-ICIA.
+pipeline_added_texture.py — Main entry point for UAV pose estimation via MR-ICIA with texture filtering.
 
 Usage:
     python pipeline.py --data_dir /path/to/vpair/query \
-                       --fx 868.99 --fy 868.99 \
-                       --cx 525.0  --cy 399.0
+                       --fx 750.626 --fy 750.263 \
+                       --cx 402.410  --cy 292.988
 
 VPAIR camera intrinsics (from dataset metadata):
-    fx = 868.99, fy = 868.99, cx = 525.0, cy = 399.0
+    fx = 750.626, fy = 750.263, cx = 402.410, cy = 292.988
     Image resolution: 1024 x 800
 
-If you don't have intrinsics yet, use --estimate_K to approximate from FoV.
 """
 
 import argparse
@@ -28,9 +27,7 @@ from pose import recover_pose
 from pyramid import build_pyramid
 
 
-# ---------------------------------------------------------------------------
 # Data loading
-# ---------------------------------------------------------------------------
 
 def load_frames(data_dir: str) -> list:
     """
@@ -88,9 +85,7 @@ def load_ground_truth(pose_file: str) -> list:
     return poses
 
 
-# ---------------------------------------------------------------------------
 # Camera matrix
-# ---------------------------------------------------------------------------
 
 def build_K(fx: float, fy: float, cx: float, cy: float) -> np.ndarray:
     """
@@ -129,9 +124,7 @@ def estimate_K_from_fov(image_w: int, image_h: int,
     return build_K(fx, fx, image_w / 2.0, image_h / 2.0)
 
 
-# ---------------------------------------------------------------------------
 # Template cropping
-# ---------------------------------------------------------------------------
 
 def crop_template(img: np.ndarray, ratio: float = 0.8) -> np.ndarray:
     """
@@ -151,9 +144,7 @@ def crop_template(img: np.ndarray, ratio: float = 0.8) -> np.ndarray:
     return img[dh:h - dh, dw:w - dw]
 
 
-# ---------------------------------------------------------------------------
 # MR-ICIA core loop
-# ---------------------------------------------------------------------------
 
 def mr_icia(
     template:  np.ndarray,
@@ -184,31 +175,31 @@ def mr_icia(
     Returns:
         Hp: 3x3 projective homography matrix.
     """
-    T_pyr = build_pyramid(template, levels)  # pyramid.py
-    I_pyr = build_pyramid(current,  levels)  # pyramid.py
+    T_pyr = build_pyramid(template, levels)
+    I_pyr = build_pyramid(current,  levels)
 
-    p = np.zeros(8, dtype=np.float64)  # start at identity warp
+    p = np.zeros(8, dtype=np.float64)
 
-    for level in range(levels):  # index 0 = coarsest
+    for level in range(levels):
         T_l = T_pyr[level]
         I_l = I_pyr[level]
 
-        # Precompute J and H once per pyramid level (ICIA advantage)
-        J_flat, H_mat = compute_jacobian_and_hessian(T_l)  # icia.py
+        #precompute J and H once per pyramid level (ICIA advantage)
+        J_flat, H_mat = compute_jacobian_and_hessian(T_l)
         H_inv = np.linalg.inv(H_mat)
 
         prev_mse = np.inf
         no_improve_count = 0
 
         for iteration in range(max_iters):
-            delta_p, mse = icia_step(T_l, I_l, p, J_flat, H_inv)  # icia.py
-            p = compose_warp(p, delta_p)                           # homography.py
+            delta_p, mse = icia_step(T_l, I_l, p, J_flat, H_inv)
+            p = compose_warp(p, delta_p)
 
-            # Termination criterion T1: parameter increment below threshold
+            # termination criterion T1: parameter increment below threshold
             if np.linalg.norm(delta_p) < tol:
                 break
 
-            # Termination criterion T2: no improvement in MSE for 10 iters
+            # termination criterion T2: no improvement in MSE for 10 iters
             if mse >= prev_mse:
                 no_improve_count += 1
                 if no_improve_count >= 10:
@@ -217,16 +208,15 @@ def mr_icia(
                 no_improve_count = 0
             prev_mse = mse
 
-        # Propagate parameters to next finer level
+        # propagate parameters to next finer level
         if level < levels - 1:
-            p = propagate_params(p)  # homography.py
+            p = propagate_params(p)
 
-    return build_homography(p)  # homography.py
+    return build_homography(p)
 
 
-# ---------------------------------------------------------------------------
 # RMSE evaluation
-# ---------------------------------------------------------------------------
+
 
 def compute_rmse(estimated: list, ground_truth: list) -> dict:
     """
@@ -250,7 +240,6 @@ def compute_rmse(estimated: list, ground_truth: list) -> dict:
     rmse = np.sqrt(np.mean((est - gt) ** 2, axis=0))
     return {"roll": rmse[0], "pitch": rmse[1], "yaw": rmse[2]}
 
-# In pipeline.py — replace load_ground_truth() with this:
 
 def load_vpair_poses(pose_file: str) -> list:
     """
@@ -286,7 +275,7 @@ def compute_rmse_vpair(estimated_angles: list, gt_relative: list) -> dict:
 
     for i in range(n):
         est_roll,  est_pitch,  est_yaw  = estimated_angles[i]
-        gt_roll,   gt_pitch,   gt_yaw   = gt_relative[i]  # unpack tuple
+        gt_roll,   gt_pitch,   gt_yaw   = gt_relative[i]
 
         angle_errors.append([
             est_roll  - gt_roll,
@@ -360,9 +349,9 @@ def has_sufficient_texture(img: np.ndarray, threshold: float = 30.0) -> bool:
     gradient_magnitude = np.sqrt(gx**2 + gy**2)
     # print(float(np.mean(gradient_magnitude)))
     return float(np.mean(gradient_magnitude)) > threshold
-# ---------------------------------------------------------------------------
+
 # Main
-# ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -414,10 +403,10 @@ def main():
     )
     args = parser.parse_args()
 
-    # --- Load frames ---
+    # Load frames
     frames = load_frames(args.data_dir)
 
-    # --- Build camera matrix K ---
+    # Build camera matrix K
     if args.estimate_K:
         h, w = frames[0].shape
         K = estimate_K_from_fov(w, h, args.fov)
@@ -426,14 +415,14 @@ def main():
         K = build_K(args.fx, args.fy, args.cx, args.cy)
         print(f"Using provided K:\n{K}")
     else:
-        # VPAIR default intrinsics
+        #VPAIR default intrinsics
         K = build_K(750.626, 750.263, 402.410, 292.988)
         print(f"Using VPAIR default K:\n{K}")
 
-    # --- Load ground-truth poses (optional) ---
+    # Load ground-truth poses (optional)
     gt_poses = load_vpair_poses(args.pose_file) if args.pose_file else []
 
-    # --- Run MR-ICIA on consecutive frame pairs ---
+    #Run MR-ICIA on consecutive frame pairs
     estimated_angles = []
     results = []
 
@@ -441,7 +430,7 @@ def main():
         T_full = frames[i]
         I_full = frames[i + 1]
 
-        # Crop central 80% of template (as in paper)
+        # Crop central 80% of template
         T = crop_template(T_full, ratio=0.8)
         I = crop_template(I_full, ratio=0.8)
 
@@ -473,7 +462,7 @@ def main():
         print(f"Frame {i:04d} -> {i+1:04d} | "
               f"roll={roll:7.3f}°  pitch={pitch:7.3f}°  yaw={yaw:7.3f}°")
 
-    # --- RMSE evaluation ---
+    # RMSE evaluation
     if gt_poses:
         gt_relative = compute_relative_angles(gt_poses)
         rmse = compute_rmse_vpair(estimated_angles, gt_relative)
@@ -483,7 +472,7 @@ def main():
         print(f"  Yaw:   {rmse['yaw_rmse']:.4f}°")
         plot_errors_over_time(estimated_angles, gt_relative, output_path="moving_rmse.png")
 
-    # --- Save results to CSV ---
+    #Save results to CSV
     out_path = Path(args.output)
     with open(out_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
