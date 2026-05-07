@@ -15,6 +15,7 @@ If you don't have intrinsics yet, use --estimate_K to approximate from FoV.
 
 import argparse
 import csv
+import os
 from pathlib import Path
 
 import cv2
